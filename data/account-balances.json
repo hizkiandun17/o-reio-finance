@@ -1,0 +1,38 @@
+[
+  {
+    "channelId": "chn_bca",
+    "provider": "BCA API",
+    "currency": "IDR",
+    "balance": 124600000,
+    "syncedAt": "2026-04-02T13:45:00+07:00",
+    "status": "SYNCED",
+    "accountName": "BCA Main Operating"
+  },
+  {
+    "channelId": "chn_wise",
+    "provider": "Wise",
+    "currency": "IDR",
+    "balance": 47850000,
+    "syncedAt": "2026-04-02T13:39:00+07:00",
+    "status": "SYNCED",
+    "accountName": "Wise Wholesale Settlement"
+  },
+  {
+    "channelId": "chn_pingpong",
+    "provider": "Pingpong",
+    "currency": "IDR",
+    "balance": 31250000,
+    "syncedAt": "2026-04-02T13:42:00+07:00",
+    "status": "SYNCED",
+    "accountName": "Pingpong Shopify Wallet"
+  },
+  {
+    "channelId": "chn_aspire",
+    "provider": "Aspire",
+    "currency": "IDR",
+    "balance": 19900000,
+    "syncedAt": "2026-04-02T13:33:00+07:00",
+    "status": "SYNCED",
+    "accountName": "Aspire Ads Wallet"
+  }
+]

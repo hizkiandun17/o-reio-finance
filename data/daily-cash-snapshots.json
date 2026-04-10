@@ -1,0 +1,134 @@
+[
+  {
+    "date": "2026-03-31",
+    "accounts": [
+      {
+        "account_id": "bca_pt",
+        "balance": 118500000
+      },
+      {
+        "account_id": "wise",
+        "balance": 46500000
+      },
+      {
+        "account_id": "pingpong",
+        "balance": 30000000
+      },
+      {
+        "account_id": "aspire_sgd",
+        "balance": 19100000
+      }
+    ],
+    "total_balance": 214100000,
+    "closingBalance": 214100000,
+    "currency": "IDR",
+    "capturedAt": "2026-04-01T00:05:00+07:00",
+    "sourceCount": 4,
+    "status": "COMPLETE",
+    "metadata": {
+      "includedChannelIds": ["chn_bca", "chn_wise", "chn_pingpong", "chn_aspire"],
+      "missingChannelIds": [],
+      "availableChannelIds": ["chn_bca", "chn_wise", "chn_pingpong", "chn_aspire"],
+      "accountBreakdown": [
+        {
+          "channelId": "chn_bca",
+          "channelName": "BCA",
+          "provider": "BCA API",
+          "accountName": "BCA Main Operating",
+          "balance": 118500000,
+          "syncedAt": "2026-03-31T23:55:00+07:00"
+        },
+        {
+          "channelId": "chn_wise",
+          "channelName": "Wise",
+          "provider": "Wise",
+          "accountName": "Wise Wholesale Settlement",
+          "balance": 46500000,
+          "syncedAt": "2026-03-31T23:51:00+07:00"
+        },
+        {
+          "channelId": "chn_pingpong",
+          "channelName": "Pingpong",
+          "provider": "Pingpong",
+          "accountName": "Pingpong Shopify Wallet",
+          "balance": 30000000,
+          "syncedAt": "2026-03-31T23:53:00+07:00"
+        },
+        {
+          "channelId": "chn_aspire",
+          "channelName": "Aspire",
+          "provider": "Aspire",
+          "accountName": "Aspire Ads Wallet",
+          "balance": 19100000,
+          "syncedAt": "2026-03-31T23:48:00+07:00"
+        }
+      ]
+    }
+  },
+  {
+    "date": "2026-04-01",
+    "accounts": [
+      {
+        "account_id": "bca_pt",
+        "balance": 121000000
+      },
+      {
+        "account_id": "wise",
+        "balance": 46800000
+      },
+      {
+        "account_id": "pingpong",
+        "balance": 30700000
+      },
+      {
+        "account_id": "aspire_sgd",
+        "balance": 19800000
+      }
+    ],
+    "total_balance": 218300000,
+    "closingBalance": 218300000,
+    "currency": "IDR",
+    "capturedAt": "2026-04-02T00:05:00+07:00",
+    "sourceCount": 4,
+    "status": "COMPLETE",
+    "metadata": {
+      "includedChannelIds": ["chn_bca", "chn_wise", "chn_pingpong", "chn_aspire"],
+      "missingChannelIds": [],
+      "availableChannelIds": ["chn_bca", "chn_wise", "chn_pingpong", "chn_aspire"],
+      "accountBreakdown": [
+        {
+          "channelId": "chn_bca",
+          "channelName": "BCA",
+          "provider": "BCA API",
+          "accountName": "BCA Main Operating",
+          "balance": 121000000,
+          "syncedAt": "2026-04-01T23:56:00+07:00"
+        },
+        {
+          "channelId": "chn_wise",
+          "channelName": "Wise",
+          "provider": "Wise",
+          "accountName": "Wise Wholesale Settlement",
+          "balance": 46800000,
+          "syncedAt": "2026-04-01T23:51:00+07:00"
+        },
+        {
+          "channelId": "chn_pingpong",
+          "channelName": "Pingpong",
+          "provider": "Pingpong",
+          "accountName": "Pingpong Shopify Wallet",
+          "balance": 30700000,
+          "syncedAt": "2026-04-01T23:54:00+07:00"
+        },
+        {
+          "channelId": "chn_aspire",
+          "channelName": "Aspire",
+          "provider": "Aspire",
+          "accountName": "Aspire Ads Wallet",
+          "balance": 19800000,
+          "syncedAt": "2026-04-01T23:47:00+07:00"
+        }
+      ]
+    }
+  }
+]
