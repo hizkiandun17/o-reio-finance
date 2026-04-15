@@ -5,7 +5,7 @@ import type { Account, DailyCashSnapshot, UnifiedTransaction } from "@/lib/types
 import { buildDailyFinanceView } from "./daily-finance-view";
 
 describe("daily finance view helpers", () => {
-  it("builds the combined balance, performance, and breakdown view", () => {
+  it("builds the combined balance and verified-only performance view", () => {
     const accounts: Account[] = [
       {
         id: "bca_pt",
@@ -125,7 +125,7 @@ describe("daily finance view helpers", () => {
       },
     };
 
-    expect(buildDailyFinanceView(accounts, transactions, snapshot, "2026-04-09")).toEqual({
+    expect(buildDailyFinanceView(accounts, transactions, snapshot, "2026-04-09")).toMatchObject({
       balance: {
         liveTotal: 1550000,
         snapshotTotal: 1400000,
@@ -148,8 +148,8 @@ describe("daily finance view helpers", () => {
       },
       performance: {
         sales: 1500000,
-        expense: 250000,
-        net: 1250000,
+        expense: 0,
+        net: 1500000,
         growthExpense: 0,
       },
       breakdowns: {
@@ -161,17 +161,418 @@ describe("daily finance view helpers", () => {
           total: 1500000,
         },
         expense: {
-          by_account: [{ account_id: "bca_pt", total: 250000 }],
-          total: 250000,
+          by_account: [],
+          total: 0,
         },
       },
+      expenseBreakdown: {
+        total: 0,
+      },
+      trend: [
+        {
+          label: "09 Apr",
+          revenue: 1500000,
+          expense: 0,
+          net: 1500000,
+        },
+      ],
       reconciliation: {
-        total: 1750000,
+        total: 1500000,
         verified: 1500000,
-        pending: 250000,
-        pendingCount: 1,
-        completionRate: 1500000 / 1750000,
+        pending: 0,
+        pendingCount: 0,
+        completionRate: 1,
       },
     });
+  });
+
+  it("aggregates performance consistently across a selected date range", () => {
+    const accounts: Account[] = [
+      {
+        id: "bca_pt",
+        name: "BCA PT",
+        currency: "IDR",
+        source: "auto",
+        type: "bank",
+      },
+    ];
+
+    const transactions: UnifiedTransaction[] = [
+      {
+        id: "utx_dfv_range_1",
+        type: "income",
+        account_id: "bca_pt",
+        channel: "shopify",
+        category_group: null,
+        category_name: null,
+        status: "verified",
+        origin: "manual",
+        amount: 1000000,
+        original_currency: "IDR",
+        exchange_rate: 1,
+        base_amount: 1000000,
+        transaction_date: "2026-04-08T09:00:00+08:00",
+        description: "Shopify payout",
+        proof: null,
+        logged_by: "usr_finance",
+      },
+      {
+        id: "utx_dfv_range_2",
+        type: "expense",
+        account_id: "bca_pt",
+        channel: null,
+        category_group: "growth",
+        category_name: "Ads",
+        status: "verified",
+        origin: "manual",
+        amount: 200000,
+        original_currency: "IDR",
+        exchange_rate: 1,
+        base_amount: 200000,
+        transaction_date: "2026-04-09T10:00:00+08:00",
+        description: "Ads spend",
+        proof: null,
+        logged_by: "usr_finance",
+      },
+      {
+        id: "utx_dfv_range_3",
+        type: "expense",
+        account_id: "bca_pt",
+        channel: null,
+        category_group: "overhead",
+        category_name: "Rent",
+        status: "verified",
+        origin: "manual",
+        amount: 150000,
+        original_currency: "IDR",
+        exchange_rate: 1,
+        base_amount: 150000,
+        transaction_date: "2026-04-10T10:00:00+08:00",
+        description: "Rent",
+        proof: null,
+        logged_by: "usr_finance",
+      },
+      {
+        id: "utx_dfv_range_4",
+        type: "income",
+        account_id: "bca_pt",
+        channel: "wholesale",
+        category_group: null,
+        category_name: null,
+        status: "verified",
+        origin: "manual",
+        amount: 500000,
+        original_currency: "IDR",
+        exchange_rate: 1,
+        base_amount: 500000,
+        transaction_date: "2026-04-11T09:00:00+08:00",
+        description: "Outside selected range",
+        proof: null,
+        logged_by: "usr_finance",
+      },
+    ];
+
+    const snapshot: DailyCashSnapshot = {
+      date: "2026-04-09",
+      accounts: [{ account_id: "bca_pt", balance: 650000 }],
+      total_balance: 650000,
+      closingBalance: 650000,
+      currency: "IDR",
+      capturedAt: "2026-04-10T00:05:00+07:00",
+      sourceCount: 1,
+      status: "COMPLETE",
+      metadata: {
+        includedChannelIds: ["chn_bca"],
+        missingChannelIds: [],
+        availableChannelIds: ["chn_bca"],
+        accountBreakdown: [],
+      },
+    };
+
+    const view = buildDailyFinanceView(accounts, transactions, snapshot, {
+      startDate: "2026-04-08",
+      endDate: "2026-04-10",
+    });
+
+    expect(view.performance).toEqual({
+      sales: 1000000,
+      expense: 350000,
+      net: 650000,
+      growthExpense: 200000,
+    });
+    expect(view.performance.net).toBe(
+      view.performance.sales - view.performance.expense,
+    );
+    expect(view.breakdowns.sales).toEqual({
+      by_channel: [{ channel: "shopify", total: 1000000 }],
+      total: 1000000,
+    });
+    expect(view.breakdowns.expense).toEqual({
+      by_account: [{ account_id: "bca_pt", total: 350000 }],
+      total: 350000,
+    });
+    expect(view.expenseBreakdown.total).toBe(350000);
+    expect(view.trend).toEqual([
+      { label: "08 Apr", revenue: 1000000, expense: 0, net: 1000000 },
+      { label: "09 Apr", revenue: 0, expense: 200000, net: -200000 },
+      { label: "10 Apr", revenue: 0, expense: 150000, net: -150000 },
+    ]);
+    expect(view.comparison).toEqual({
+      selection: {
+        startDate: "2026-04-05",
+        endDate: "2026-04-07",
+      },
+      adsRatio: {
+        current: 0.2,
+        previous: 0,
+        deltaPercent: null,
+        direction: "up",
+        trend: "worse",
+      },
+      revenue: {
+        current: 1000000,
+        previous: 0,
+        deltaPercent: null,
+        direction: "up",
+        trend: "better",
+      },
+      net: {
+        current: 650000,
+        previous: 0,
+        deltaPercent: null,
+        direction: "up",
+        trend: "better",
+      },
+    });
+  });
+
+  it("uses business revenue channels instead of integration channels", () => {
+    const accounts: Account[] = [
+      {
+        id: "bca_pt",
+        name: "BCA PT",
+        currency: "IDR",
+        source: "auto",
+        type: "bank",
+      },
+    ];
+
+    const transactions: UnifiedTransaction[] = [
+      {
+        id: "utx_dfv_channel_1",
+        type: "income",
+        account_id: "wise",
+        channel: "chn_pingpong",
+        category_id: "cat_income_shopify",
+        category_group: null,
+        category_name: null,
+        status: "verified",
+        origin: "manual",
+        amount: 1100000,
+        original_currency: "IDR",
+        exchange_rate: 1,
+        base_amount: 1100000,
+        transaction_date: "2026-04-09T09:00:00+08:00",
+        description: "PingPong Shopify settlement",
+        proof: null,
+        logged_by: "usr_finance",
+      },
+      {
+        id: "utx_dfv_channel_2",
+        type: "income",
+        account_id: "tiktok_settlement",
+        channel: "chn_tiktok",
+        category_id: "cat_income_tiktok",
+        category_group: null,
+        category_name: null,
+        status: "verified",
+        origin: "auto",
+        amount: 700000,
+        original_currency: "IDR",
+        exchange_rate: 1,
+        base_amount: 700000,
+        transaction_date: "2026-04-09T10:00:00+08:00",
+        description: "TikTok Shop settlement",
+        proof: null,
+        logged_by: "usr_finance",
+      },
+      {
+        id: "utx_dfv_channel_3",
+        type: "income",
+        account_id: "wise",
+        channel: "chn_offline",
+        category_id: "cat_income_offline",
+        category_group: null,
+        category_name: null,
+        status: "verified",
+        origin: "manual",
+        amount: 500000,
+        original_currency: "IDR",
+        exchange_rate: 1,
+        base_amount: 500000,
+        transaction_date: "2026-04-09T11:00:00+08:00",
+        description: "Offline closing",
+        proof: null,
+        logged_by: "usr_finance",
+      },
+      {
+        id: "utx_dfv_channel_4",
+        type: "income",
+        account_id: "wise",
+        channel: "chn_wise",
+        category_id: "cat_income_wholesale",
+        category_group: null,
+        category_name: null,
+        status: "pending",
+        origin: "manual",
+        amount: 900000,
+        original_currency: "IDR",
+        exchange_rate: 1,
+        base_amount: 900000,
+        transaction_date: "2026-04-09T12:00:00+08:00",
+        description: "Wholesale pending receipt",
+        proof: null,
+        logged_by: "usr_finance",
+      },
+    ];
+
+    const snapshot: DailyCashSnapshot = {
+      date: "2026-04-08",
+      accounts: [],
+      total_balance: 0,
+      closingBalance: 0,
+      currency: "IDR",
+      capturedAt: "2026-04-09T00:05:00+07:00",
+      sourceCount: 0,
+      status: "COMPLETE",
+      metadata: {
+        includedChannelIds: [],
+        missingChannelIds: [],
+        availableChannelIds: [],
+        accountBreakdown: [],
+      },
+    };
+
+    const view = buildDailyFinanceView(accounts, transactions, snapshot, "2026-04-09");
+
+    expect(view.performance).toEqual({
+      sales: 1800000,
+      expense: 0,
+      net: 1800000,
+      growthExpense: 0,
+    });
+    expect(view.breakdowns.sales).toEqual({
+      by_channel: [
+        { channel: "shopify", total: 1100000 },
+        { channel: "tiktok", total: 700000 },
+      ],
+      total: 1800000,
+    });
+  });
+
+  it("includes verified expenses even when group must be inferred from category id", () => {
+    const accounts: Account[] = [
+      {
+        id: "bca_pt",
+        name: "BCA PT",
+        currency: "IDR",
+        source: "auto",
+        type: "bank",
+      },
+    ];
+
+    const transactions: UnifiedTransaction[] = [
+      {
+        id: "utx_dfv_expense_fallback_1",
+        type: "income",
+        account_id: "bca_pt",
+        channel: "chn_pingpong",
+        category_id: "cat_income_shopify",
+        category_group: null,
+        category_name: null,
+        status: "verified",
+        origin: "manual",
+        amount: 1000000,
+        original_currency: "IDR",
+        exchange_rate: 1,
+        base_amount: 1000000,
+        transaction_date: "2026-04-09T09:00:00+08:00",
+        description: "Shopify payout",
+        proof: null,
+        logged_by: "usr_finance",
+      },
+      {
+        id: "utx_dfv_expense_fallback_2",
+        type: "expense",
+        account_id: "bca_pt",
+        channel: "chn_bca",
+        category_id: "cat_growth_promote_online_ads",
+        category_group: null,
+        category_name: "Promote-Online-ads",
+        status: "verified",
+        origin: "manual",
+        amount: 250000,
+        original_currency: "IDR",
+        exchange_rate: 1,
+        base_amount: 250000,
+        transaction_date: "2026-04-09T10:00:00+08:00",
+        description: "Ads billing",
+        proof: null,
+        logged_by: "usr_finance",
+      },
+      {
+        id: "utx_dfv_expense_fallback_3",
+        type: "expense",
+        account_id: "bca_pt",
+        channel: "chn_bca",
+        category_id: "cat_overhead_office_rent",
+        category_group: null,
+        category_name: "Office-Rent",
+        status: "verified",
+        origin: "manual",
+        amount: 150000,
+        original_currency: "IDR",
+        exchange_rate: 1,
+        base_amount: 150000,
+        transaction_date: "2026-04-09T11:00:00+08:00",
+        description: "Office rent",
+        proof: null,
+        logged_by: "usr_finance",
+      },
+    ];
+
+    const snapshot: DailyCashSnapshot = {
+      date: "2026-04-08",
+      accounts: [],
+      total_balance: 0,
+      closingBalance: 0,
+      currency: "IDR",
+      capturedAt: "2026-04-09T00:05:00+07:00",
+      sourceCount: 0,
+      status: "COMPLETE",
+      metadata: {
+        includedChannelIds: [],
+        missingChannelIds: [],
+        availableChannelIds: [],
+        accountBreakdown: [],
+      },
+    };
+
+    const view = buildDailyFinanceView(accounts, transactions, snapshot, "2026-04-09");
+
+    expect(view.performance).toEqual({
+      sales: 1000000,
+      expense: 400000,
+      net: 600000,
+      growthExpense: 250000,
+    });
+    expect(view.breakdowns.expense).toEqual({
+      by_account: [{ account_id: "bca_pt", total: 400000 }],
+      total: 400000,
+    });
+    expect(view.expenseBreakdown.total).toBe(400000);
+    expect(view.trend).toEqual([
+      { label: "09 Apr", revenue: 1000000, expense: 400000, net: 600000 },
+    ]);
   });
 });

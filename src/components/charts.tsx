@@ -395,6 +395,16 @@ export function TrendChart({
             dot={false}
             name="Expense"
           />
+          <Line
+            type="monotone"
+            dataKey="net"
+            stroke={muted ? "rgb(240 190 110 / 0.78)" : "var(--chart-4)"}
+            strokeWidth={2}
+            strokeOpacity={muted ? 0.82 : 1}
+            strokeDasharray="6 4"
+            dot={false}
+            name="Net"
+          />
         </LineChart>
       </ResponsiveContainer>
     </div>

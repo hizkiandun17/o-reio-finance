@@ -152,6 +152,7 @@ export interface UnifiedTransaction {
   account_id: string;
   target_account_id?: string | null;
   channel?: string | null;
+  category_id?: string | null;
   category_group?: UnifiedCategoryGroup | null;
   category_name?: string | null;
   status: UnifiedTransactionStatus;

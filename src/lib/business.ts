@@ -378,6 +378,7 @@ export function normalizeTransaction(
     account_id: mapLegacyChannelIdToAccountId(transaction.channelId),
     target_account_id: null,
     channel: transaction.channelId,
+    category_id: transaction.categoryId,
     category_group:
       transaction.kind === "EXPENSE"
         ? mapExpenseGroupToUnifiedCategoryGroup(expenseGroup)

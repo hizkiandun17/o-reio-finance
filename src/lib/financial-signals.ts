@@ -1,5 +1,50 @@
 import { buildDailyFinanceView } from "@/lib/daily-finance-view";
 
+export type AdsEfficiencyStatus = "healthy" | "optimize" | "unsafe";
+
+export interface AdsEfficiencySignal {
+  ratio: number;
+  status: AdsEfficiencyStatus;
+  message: string;
+}
+
+function getAdsEfficiencySignal(
+  financeView: ReturnType<typeof buildDailyFinanceView>,
+): AdsEfficiencySignal {
+  const revenue = financeView.performance.sales;
+  const growthExpense = financeView.performance.growthExpense;
+  const ratio = revenue === 0 ? 0 : growthExpense / revenue;
+
+  if (ratio > 0.25) {
+    return {
+      ratio,
+      status: "unsafe",
+      message: "Spending too aggressively. Scaling is risky.",
+    };
+  }
+
+  if (ratio >= 0.15) {
+    const adsTrend = financeView.comparison?.adsRatio.trend;
+
+    return {
+      ratio,
+      status: "optimize",
+      message:
+        adsTrend === "better"
+          ? "Good direction, continue optimizing."
+          : adsTrend === "worse"
+            ? "Efficiency declining, take action urgently."
+            : "Profit is okay but efficiency needs improvement.",
+    };
+  }
+
+  return {
+    ratio,
+    status: "healthy",
+    message: "Efficient and scalable.",
+  };
+}
+
 export function buildSignals(
   financeView: ReturnType<typeof buildDailyFinanceView>,
 ) {
@@ -13,25 +58,24 @@ export function buildSignals(
   const liveBalance = financeView.balance.liveTotal;
   const net = financeView.performance.net;
   const pendingCount = financeView.reconciliation.pendingCount;
-  const growthRatio =
-    sales === 0 ? 0 : financeView.performance.growthExpense / sales;
+  const adsEfficiency = getAdsEfficiencySignal(financeView);
 
-  if (growthRatio > 0.6) {
+  if (adsEfficiency.status === "unsafe") {
     signals.push({
       type: "danger",
-      message: "Growth spend is above 60% of sales.",
+      message: adsEfficiency.message,
     });
-  } else if (growthRatio > 0.4) {
+  } else if (adsEfficiency.status === "optimize") {
     signals.push({
       type: "warning",
-      message: "Growth spend is above 40% of sales.",
+      message: adsEfficiency.message,
     });
   }
 
   if (net < 0) {
     signals.push({
       type: "danger",
-      message: "Net is negative for the selected day.",
+      message: "Net is negative for the selected period.",
     });
   }
 
@@ -63,5 +107,5 @@ export function buildSignals(
     });
   }
 
-  return { signals };
+  return { adsEfficiency, signals };
 }

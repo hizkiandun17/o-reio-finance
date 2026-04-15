@@ -3,8 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  ArrowDown,
+  ArrowUp,
   CircleAlert,
   CircleCheckBig,
+  CircleHelp,
   MessageSquareWarning,
 } from "lucide-react";
 
@@ -23,6 +26,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   formatCurrency,
   formatCompactCurrency,
   formatDate,
@@ -34,14 +42,15 @@ import {
   type AccountBalanceSummary,
 } from "@/lib/balance-breakdown";
 import { normalizeTransactions } from "@/lib/business";
-import { buildDailyFinanceView } from "@/lib/daily-finance-view";
-import { buildSignals } from "@/lib/financial-signals";
-import { getSourceDisplayName } from "@/lib/source-display";
+import {
+  buildDailyFinanceView,
+  getRevenueChannelDisplayName,
+} from "@/lib/daily-finance-view";
+import { buildSignals, type AdsEfficiencyStatus } from "@/lib/financial-signals";
 import type {
   Account,
   DailyCashSnapshot,
   DailyCashSnapshotStatus,
-  TrafficLightStatus,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -49,7 +58,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const {
     balanceSummary,
-    dashboard,
+    categoryMap,
     dashboardDateRange,
     hydrated,
     role,
@@ -58,6 +67,7 @@ export default function DashboardPage() {
   const [balanceDetailView, setBalanceDetailView] = useState<"live" | "closing" | null>(
     null,
   );
+  const [adsEfficiencyDetailOpen, setAdsEfficiencyDetailOpen] = useState(false);
 
   useEffect(() => {
     if (hydrated && role === "FINANCE") {
@@ -87,8 +97,8 @@ export default function DashboardPage() {
     [balanceSummary?.lastClosingSnapshot, selectedDate],
   );
   const unifiedTransactions = useMemo(
-    () => normalizeTransactions(transactions),
-    [transactions],
+    () => normalizeTransactions(transactions, categoryMap),
+    [categoryMap, transactions],
   );
   const financeView = useMemo(
     () =>
@@ -96,9 +106,17 @@ export default function DashboardPage() {
         accountSeed,
         unifiedTransactions,
         snapshot,
-        selectedDate,
+        {
+          startDate: dashboardDateRange.startDate,
+          endDate: dashboardDateRange.endDate,
+        },
       ),
-    [selectedDate, snapshot, unifiedTransactions],
+    [
+      dashboardDateRange.endDate,
+      dashboardDateRange.startDate,
+      snapshot,
+      unifiedTransactions,
+    ],
   );
   const liveAccountBalances = useMemo(
     () => getAllAccountBalances(accountSeed, unifiedTransactions),
@@ -108,7 +126,8 @@ export default function DashboardPage() {
     () => buildSignals(financeView),
     [financeView],
   );
-  const financeStatus = getFinanceStatus(signalState.signals);
+  const adsEfficiency = signalState.adsEfficiency;
+  const adsRatioPercent = adsEfficiency.ratio * 100;
   const selectedDateLabel = formatDate(`${selectedDate}T00:00:00+08:00`);
   const isSingleDayRange = dashboardDateRange.startDate === dashboardDateRange.endDate;
   const selectedRangeLabel = formatDashboardDateRangeLabel(
@@ -117,18 +136,9 @@ export default function DashboardPage() {
   );
   const netPerformanceLabel = isSingleDayRange ? "Today's Net" : "Net Profit";
   const liveBalanceStatus = getLiveBalanceStatus(balanceSummary?.liveStatus);
-  const adsRatio =
-    financeView.performance.sales === 0
-      ? 0
-      : (financeView.performance.growthExpense / financeView.performance.sales) * 100;
   const profitTone = getValueTone(financeView.performance.net);
   const closeDifferenceTone = getValueTone(financeView.balance.difference);
-  const profitStatusBanner = getProfitStatusBanner(financeStatus);
-  const profitInsight = getProfitInsight(
-    financeStatus,
-    financeView.performance.net,
-    adsRatio,
-  );
+  const adsEfficiencyBanner = getAdsEfficiencyBanner(adsEfficiency.status);
   const prioritizedSignals = [...signalState.signals]
     .sort((left, right) => getSignalPriority(right.type) - getSignalPriority(left.type));
   const primarySignal = prioritizedSignals[0] ?? {
@@ -148,6 +158,17 @@ export default function DashboardPage() {
     () => getSnapshotCoverage(snapshot, accountSeed),
     [snapshot],
   );
+
+  useEffect(() => {
+    console.log("growth_expense:", financeView.performance.growthExpense);
+    console.log("revenue:", financeView.performance.sales);
+    console.log("ads_ratio:", adsEfficiency.ratio);
+  }, [
+    adsEfficiency.ratio,
+    financeView.performance.growthExpense,
+    financeView.performance.sales,
+  ]);
+
   if (role === "FINANCE") {
     return null;
   }
@@ -510,46 +531,94 @@ export default function DashboardPage() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={adsEfficiencyDetailOpen} onOpenChange={setAdsEfficiencyDetailOpen}>
+        <DialogContent className="border-white/10 bg-[#151515] text-white sm:max-w-xl">
+          <AdsEfficiencyDetail
+            adsRatioPercent={adsRatioPercent}
+            status={adsEfficiency.status}
+          />
+        </DialogContent>
+      </Dialog>
+
       <section className="space-y-3">
         <SectionHeading
           eyebrow="Performance"
           title={isSingleDayRange ? "Daily performance" : "Range performance"}
           description="Sales, expense, and net outcome for the selected finance range."
         />
+        <div className="space-y-2 rounded-[18px] border border-white/8 bg-[#121212] px-4 py-4">
+          <p className="text-sm font-medium text-white">
+            Daily (Realtime): Shopify (WWX) + TikTok (OSCO)
+          </p>
+          <p className="text-sm text-[#8f8f8f]">
+            Excludes wholesale and consignment unless verified and included in dataset.
+          </p>
+          <p className="text-sm text-[#8f8f8f]">
+            Live balance reflects wallet funds, not revenue. This is operational daily decision data.
+          </p>
+        </div>
         <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
           <Card className="command-panel">
             <CardHeader className="pb-4">
-              <div
+              <button
+                type="button"
+                onClick={() => setAdsEfficiencyDetailOpen(true)}
                 className={cn(
-                  "rounded-[20px] border px-4 py-3",
-                  profitStatusBanner.bannerClass,
+                  "w-full rounded-[20px] border px-4 py-3 text-left transition hover:border-white/20",
+                  adsEfficiencyBanner.bannerClass,
                 )}
               >
                 <p className="text-sm font-semibold text-white">
-                  {profitStatusBanner.label}
+                  {adsEfficiencyBanner.label}
                 </p>
-              </div>
+                <p className="mt-1 text-xs text-[#c7c7c7]">
+                  Click to understand what this means
+                </p>
+              </button>
               <div className="flex flex-wrap items-start justify-between gap-4 pt-2">
                 <div>
                   <p className="command-label">{netPerformanceLabel}</p>
                   <CardTitle className={cn("mt-3 command-kpi", profitTone.valueClass)}>
                     {formatCompactCurrency(financeView.performance.net)}
                   </CardTitle>
-                  <p className="mt-3 text-sm text-[#b7b7b7]">{profitInsight}</p>
+                  <p className="mt-3 text-sm text-[#b7b7b7]">{adsEfficiency.message}</p>
                 </div>
                 <div className="rounded-[18px] border border-white/10 bg-[#121212] px-4 py-3 text-right">
-                  <p className="command-label">
-                    {isSingleDayRange ? "Selected date" : "Selected range"}
+                  <p className="command-label">ADS efficiency</p>
+                  <p className="mt-2 text-sm font-medium text-white">
+                    {formatPercent(adsRatioPercent)}
                   </p>
-                  <p className="mt-2 text-sm font-medium text-white">{selectedRangeLabel}</p>
+                  <p className={cn("mt-2 text-xs font-medium uppercase tracking-[0.16em]", adsEfficiencyBanner.textClass)}>
+                    {adsEfficiencyBanner.shortLabel}
+                  </p>
+                  <p className="mt-2 text-xs text-[#8f8f8f]">
+                    {isSingleDayRange ? selectedRangeLabel : `Range ${selectedRangeLabel}`}
+                  </p>
                 </div>
               </div>
               <div className="mt-4 text-sm text-[#9f9f9f]">
-                {selectedRangeLabel} · ADS ratio {formatPercent(adsRatio)}
+                {selectedRangeLabel} · ADS {formatPercent(adsRatioPercent)}
+              </div>
+              <div className="mt-4 grid gap-3 border-t border-white/8 pt-4 md:grid-cols-3">
+                <TrendComparisonItem
+                  label="Revenue"
+                  comparison={financeView.comparison.revenue}
+                  formatValue={(value) => formatPercent(value)}
+                />
+                <TrendComparisonItem
+                  label="Net"
+                  comparison={financeView.comparison.net}
+                  formatValue={(value) => formatPercent(value)}
+                />
+                <TrendComparisonItem
+                  label="ADS ratio"
+                  comparison={financeView.comparison.adsRatio}
+                  formatValue={(value) => formatPercent(value)}
+                />
               </div>
             </CardHeader>
             <CardContent className="space-y-5">
-              <TrendChart data={dashboard.trend} dense muted />
+              <TrendChart data={financeView.trend} dense muted />
             </CardContent>
           </Card>
 
@@ -558,6 +627,7 @@ export default function DashboardPage() {
               label="Sales"
               value={formatCompactCurrency(financeView.performance.sales)}
               note="Income captured for the selected range."
+              infoTooltip="Based on transaction data, not bank balance."
             />
             <SummaryMetricCard
               label="Expense"
@@ -578,7 +648,7 @@ export default function DashboardPage() {
         <SectionHeading
           eyebrow="Breakdown"
           title="Sales and expense detail"
-          description="Where income is coming from and how expense is distributed today."
+          description="Where income is coming from and how expense is distributed for the selected range."
         />
         <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
           <Card className="command-panel">
@@ -602,7 +672,7 @@ export default function DashboardPage() {
                     >
                       <div>
                         <p className="font-medium text-white">
-                          {getChannelDisplayName(item.channel)}
+                          {getRevenueChannelDisplayName(item.channel)}
                         </p>
                         <p className="mt-1 text-sm text-[#8f8f8f]">Sales channel</p>
                       </div>
@@ -613,7 +683,7 @@ export default function DashboardPage() {
                   ))
                 ) : (
                   <div className="rounded-[18px] border border-white/8 bg-[#121212] px-4 py-4 text-sm text-[#8f8f8f]">
-                    No sales activity for the selected day.
+                    No sales activity for the selected range.
                   </div>
                 )}
               </div>
@@ -626,7 +696,7 @@ export default function DashboardPage() {
               <CardTitle className="mt-3 text-2xl text-white">Burn allocation</CardTitle>
             </CardHeader>
             <CardContent>
-              <ExpenseDonutChart data={dashboard.expenseBreakdown} />
+              <ExpenseDonutChart data={financeView.expenseBreakdown} />
             </CardContent>
           </Card>
         </div>
@@ -655,9 +725,9 @@ export default function DashboardPage() {
                 <div className="border border-white/8 bg-[#121212] px-4 py-4">
                   <p className="command-label">Ads ratio</p>
                   <p className="mt-4 text-4xl font-semibold text-white">
-                    {formatPercent(adsRatio)}
+                    {formatPercent(adsRatioPercent)}
                   </p>
-                  <p className="mt-3 text-xs text-[#8f8f8f]">Keep below 40%</p>
+                  <p className="mt-3 text-xs text-[#8f8f8f]">Healthy below 15%, caution above 25%</p>
                 </div>
                 <div className="border border-white/8 bg-[#121212] px-4 py-4">
                   <p className="command-label">Pending</p>
@@ -746,23 +816,166 @@ function SummaryMetricCard({
   label,
   value,
   note,
+  infoTooltip,
   valueClass = "text-white",
 }: {
   label: string;
   value: string;
   note: string;
+  infoTooltip?: string;
   valueClass?: string;
 }) {
   return (
     <Card className="command-panel">
       <CardHeader className="pb-3">
-        <p className="command-label">{label}</p>
+        <div className="flex items-center gap-2">
+          <p className="command-label">{label}</p>
+          {infoTooltip ? (
+            <Tooltip>
+              <TooltipTrigger className="inline-flex items-center justify-center text-[#8f8f8f] transition hover:text-white">
+                <CircleHelp className="size-3.5" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-[220px] border border-white/10 bg-[#151515] text-[#f3f3f3]">
+                {infoTooltip}
+              </TooltipContent>
+            </Tooltip>
+          ) : null}
+        </div>
         <CardTitle className={cn("mt-3 text-3xl", valueClass)}>{value}</CardTitle>
       </CardHeader>
       <CardContent>
         <p className="text-sm text-[#8f8f8f]">{note}</p>
       </CardContent>
     </Card>
+  );
+}
+
+function TrendComparisonItem({
+  label,
+  comparison,
+  formatValue,
+}: {
+  label: string;
+  comparison: {
+    deltaPercent: number | null;
+    direction: "up" | "down" | "flat";
+    trend: "better" | "worse" | "neutral";
+  };
+  formatValue: (value: number) => string;
+}) {
+  const tone = getComparisonTone(comparison.trend);
+  const deltaLabel =
+    comparison.deltaPercent === null
+      ? "New"
+      : comparison.direction === "flat"
+        ? "0.0%"
+        : formatValue(Math.abs(comparison.deltaPercent));
+
+  return (
+    <div className="rounded-[16px] border border-white/8 bg-[#121212] px-3 py-3">
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#7f7f7f]">
+        {label}
+      </p>
+      <div className={cn("mt-2 flex items-center gap-2", tone.textClass)}>
+        {comparison.direction === "up" ? (
+          <ArrowUp className="size-4" />
+        ) : comparison.direction === "down" ? (
+          <ArrowDown className="size-4" />
+        ) : (
+          <span className="text-sm leading-none">•</span>
+        )}
+        <span className="text-sm font-medium">{deltaLabel}</span>
+      </div>
+      <p className="mt-2 text-xs text-[#8f8f8f]">{tone.caption}</p>
+    </div>
+  );
+}
+
+function AdsEfficiencyDetail({
+  adsRatioPercent,
+  status,
+}: {
+  adsRatioPercent: number;
+  status: AdsEfficiencyStatus;
+}) {
+  const content = getAdsEfficiencyDetailContent(status);
+  const semantic = getAdsEfficiencySemanticStyles(status);
+
+  return (
+    <>
+      <DialogHeader className="border-b border-white/8 pb-4">
+        <div
+          className={cn(
+            "inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1.5",
+            semantic.badgeClass,
+          )}
+        >
+          <semantic.Icon className={cn("size-4", semantic.iconClass)} />
+          <span className={cn("text-sm font-medium", semantic.textClass)}>
+            {content.title}
+          </span>
+        </div>
+        <DialogTitle className="mt-2 text-3xl text-white">
+          Ads Efficiency {formatPercent(adsRatioPercent)}
+        </DialogTitle>
+        <DialogDescription className="mt-2 text-[#8f8f8f]">
+          Operational daily decision data from verified transactions.
+        </DialogDescription>
+      </DialogHeader>
+
+      <div className="space-y-5 py-2">
+        <div
+          className={cn(
+            "rounded-[18px] border px-4 py-4",
+            semantic.panelClass,
+          )}
+        >
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7f7f7f]">
+            Priority
+          </p>
+          <div className="mt-3 flex items-start gap-3">
+            <semantic.Icon className={cn("mt-0.5 size-4 shrink-0", semantic.iconClass)} />
+            <p className="text-sm font-medium text-white">{content.priority}</p>
+          </div>
+        </div>
+
+        <div className="border-b border-white/8 pb-5">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7f7f7f]">
+            Meaning
+          </p>
+          <p className="mt-3 text-sm leading-6 text-[#d3d3d3]">{content.meaning}</p>
+        </div>
+
+        <div className="border-b border-white/8 pb-5">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7f7f7f]">
+            What To Do
+          </p>
+          <div className="mt-3 space-y-3">
+            {content.steps.map((step) => (
+              <div
+                key={step}
+                className={cn(
+                  "rounded-[14px] border bg-[#121212] px-3 py-3 transition",
+                  semantic.actionClass,
+                )}
+              >
+                <div className="flex items-start gap-3">
+                  <CircleCheckBig className={cn("mt-0.5 size-4 shrink-0", semantic.iconClass)} />
+                  <p className="text-sm font-medium text-white">{step}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7f7f7f]">
+            Why It Matters
+          </p>
+          <p className="mt-3 text-sm leading-6 text-[#d3d3d3]">{content.whyItMatters}</p>
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -871,45 +1084,135 @@ function formatDashboardDateRangeLabel(startDate: string, endDate: string) {
   return `${formatDate(`${startDate}T00:00:00+08:00`, startPattern)} – ${formatDate(`${endDate}T00:00:00+08:00`, endPattern)}`;
 }
 
-function getProfitStatusBanner(status: TrafficLightStatus) {
-  if (status === "RED") {
+function getAdsEfficiencyBanner(status: AdsEfficiencyStatus) {
+  if (status === "unsafe") {
     return {
-      label: "Unhealthy - High ad spend",
+      label: "Unsafe",
+      shortLabel: "Unsafe",
       bannerClass: "border-rose-500/20 bg-rose-500/10",
+      textClass: "text-rose-300",
     };
   }
 
-  if (status === "YELLOW") {
+  if (status === "optimize") {
     return {
-      label: "Watch closely - Efficiency needs work",
+      label: "Optimize",
+      shortLabel: "Optimize",
       bannerClass: "border-amber-500/20 bg-amber-500/10",
+      textClass: "text-amber-300",
     };
   }
 
   return {
-    label: "Healthy - Spend is under control",
+    label: "Healthy",
+    shortLabel: "Healthy",
     bannerClass: "border-emerald-500/20 bg-emerald-500/10",
+    textClass: "text-emerald-300",
   };
 }
 
-function getProfitInsight(
-  status: "GREEN" | "YELLOW" | "RED",
-  net: number,
-  adsPercent: number,
-) {
-  if (status === "RED" && net > 0) {
-    return "Profit is positive but pressured by ad spend.";
+function getComparisonTone(trend: "better" | "worse" | "neutral") {
+  if (trend === "better") {
+    return {
+      textClass: "text-emerald-300",
+      caption: "Better vs previous",
+    };
   }
 
-  if (status === "RED") {
-    return "Profit is under pressure and ad spend is too high.";
+  if (trend === "worse") {
+    return {
+      textClass: "text-rose-300",
+      caption: "Worse vs previous",
+    };
   }
 
-  if (status === "YELLOW") {
-    return `Profit is holding, but ${formatPercent(adsPercent)} in ads needs tighter control.`;
+  return {
+    textClass: "text-[#bdbdbd]",
+    caption: "Flat vs previous",
+  };
+}
+
+function getAdsEfficiencyDetailContent(status: AdsEfficiencyStatus) {
+  if (status === "optimize") {
+    return {
+      title: "Optimize",
+      priority: "Tighten efficiency before increasing spend.",
+      meaning:
+        "Profit is still okay. Efficiency needs work before you scale.",
+      steps: [
+        "✓ Test creatives -> reduce CPA",
+        "✓ Shift budget -> high performers",
+        "✓ Improve landing page / offer",
+        "✓ Wait before scaling",
+      ],
+      whyItMatters:
+        "Margin is still there. Scaling too early can make profit unstable.",
+    };
   }
 
-  return "Profit looks healthy and spend remains under control.";
+  if (status === "unsafe") {
+    return {
+      title: "Unsafe",
+      priority: "Cut waste now before scaling again.",
+      meaning:
+        "Ad spend is too heavy for current revenue. Scaling now increases risk fast.",
+      steps: [
+        "✓ Stop scaling",
+        "✓ Reduce ad spend immediately",
+        "✓ Identify wasteful campaigns",
+        "✓ Fix conversion funnel before spending more",
+      ],
+      whyItMatters:
+        "Weak efficiency can drain profit quickly. Pulling back protects cash and stability.",
+    };
+  }
+
+  return {
+    title: "Healthy",
+    priority: "Scale carefully while protecting efficiency.",
+    meaning:
+      "Ad spend is efficient for current revenue. This is a good zone for controlled growth.",
+    steps: [
+      "✓ Scale gradually",
+      "✓ Increase budget on winning campaigns",
+      "✓ Maintain efficiency",
+    ],
+    whyItMatters:
+      "Healthy efficiency supports profit stability. It gives you room to scale carefully.",
+  };
+}
+
+function getAdsEfficiencySemanticStyles(status: AdsEfficiencyStatus) {
+  if (status === "unsafe") {
+    return {
+      Icon: CircleAlert,
+      textClass: "text-[#EF4444]",
+      iconClass: "text-[#EF4444]",
+      badgeClass: "border-[#EF4444]/25 bg-[#EF4444]/10",
+      panelClass: "border-[#EF4444]/18 bg-[#EF4444]/8",
+      actionClass: "border-white/8 hover:border-[#EF4444]/25 hover:bg-[#EF4444]/6",
+    };
+  }
+
+  if (status === "optimize") {
+    return {
+      Icon: MessageSquareWarning,
+      textClass: "text-[#FACC15]",
+      iconClass: "text-[#FACC15]",
+      badgeClass: "border-[#FACC15]/25 bg-[#FACC15]/10",
+      panelClass: "border-[#FACC15]/18 bg-[#FACC15]/8",
+      actionClass: "border-white/8 hover:border-[#FACC15]/25 hover:bg-[#FACC15]/6",
+    };
+  }
+
+  return {
+    Icon: CircleCheckBig,
+    textClass: "text-[#22C55E]",
+    iconClass: "text-[#22C55E]",
+    badgeClass: "border-[#22C55E]/25 bg-[#22C55E]/10",
+    panelClass: "border-[#22C55E]/18 bg-[#22C55E]/8",
+    actionClass: "border-white/8 hover:border-[#22C55E]/25 hover:bg-[#22C55E]/6",
+  };
 }
 
 function getValueTone(value: number | null) {
@@ -1122,24 +1425,6 @@ function buildLiveBalanceGroups(accountBalances: AccountBalanceSummary[]) {
       total: groups.Holding.reduce((sum, account) => sum + account.balance, 0),
     },
   ];
-}
-
-function getChannelDisplayName(channelId: string) {
-  return getSourceDisplayName(channelId);
-}
-
-function getFinanceStatus(
-  signals: Array<{ type: "info" | "warning" | "danger"; message: string }>,
-): TrafficLightStatus {
-  if (signals.some((signal) => signal.type === "danger")) {
-    return "RED";
-  }
-
-  if (signals.some((signal) => signal.type === "warning")) {
-    return "YELLOW";
-  }
-
-  return "GREEN";
 }
 
 function getPrimarySignalTitle(signalType: "info" | "warning" | "danger") {

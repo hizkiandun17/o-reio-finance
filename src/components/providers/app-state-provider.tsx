@@ -224,6 +224,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       id: `txn_manual_${crypto.randomUUID()}`,
       accountId: input.channelId,
       channel: input.channelId,
+      categoryId: input.categoryId,
       categoryGroup:
         input.kind === "EXPENSE"
           ? mapExpenseGroupToUnifiedCategoryGroup(expenseGroup)

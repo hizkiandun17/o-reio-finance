@@ -30,6 +30,7 @@ export interface CreateManualUnifiedTransactionOptions {
   id?: string;
   accountId: string;
   channel?: string | null;
+  categoryId?: string | null;
   categoryGroup?: UnifiedCategoryGroup | null;
   categoryName?: string | null;
   baseAmount: number;
@@ -401,6 +402,7 @@ export function createManualUnifiedTransaction(
     account_id: options.accountId,
     target_account_id: null,
     channel: options.channel ?? options.accountId,
+    category_id: options.categoryId ?? null,
     category_group: type === "expense" ? options.categoryGroup ?? null : null,
     category_name: type === "expense" ? options.categoryName ?? null : null,
     status: "pending",
