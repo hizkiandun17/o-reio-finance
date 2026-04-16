@@ -198,6 +198,7 @@ export default function ManualInputsPage() {
         kind,
         categoryId: resolvedCategoryId,
         channelId: accountId,
+        accountId,
         proof,
       });
       setSubmitted(true);
@@ -638,7 +639,7 @@ export default function ManualInputsPage() {
                     ) : null}
                   </div>
                   <p className="mt-1 text-sm text-[#8f8f8f]">
-                    {formatDate(entry.transactionDate)} · {getSourceDisplayName(entry.channelId)}
+                    {formatDate(entry.transactionDate)} · {getSourceDisplayName(entry.accountId ?? entry.channelId)}
                   </p>
                 </div>
                 <div className="text-right">

@@ -2,8 +2,21 @@
 
 import { startTransition, useMemo, useState } from "react";
 import { ArrowLeft } from "lucide-react";
-import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
-import { CartesianGrid, Line, LineChart, XAxis, YAxis, Bar, BarChart } from "recharts";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 import { Button } from "@/components/ui/button";
 import { formatCompactCurrency, formatPercent } from "@/lib/format";
@@ -348,19 +361,354 @@ function ExpenseBreakdownTooltip({
   );
 }
 
+function calculateMovingAverage(
+  values: number[],
+  index: number,
+  windowSize = 3,
+) {
+  const start = Math.max(0, index - windowSize + 1);
+  const slice = values.slice(start, index + 1);
+  const total = slice.reduce((sum, value) => sum + value, 0);
+
+  return slice.length === 0 ? 0 : total / slice.length;
+}
+
+function getTrendDomain(data: Array<{ revenue: number; expense: number; net: number }>) {
+  const values = data.flatMap((point) => [point.revenue, point.expense, point.net]);
+  const minimum = Math.min(...values, 0);
+  const maximum = Math.max(...values, 0);
+  const spread = Math.max(maximum - minimum, Math.abs(maximum), Math.abs(minimum), 1);
+  const padding = spread * 0.14;
+
+  return [minimum - padding * 0.45, maximum + padding] as const;
+}
+
+function TrendLatestDot({
+  cx,
+  cy,
+  payload,
+  stroke,
+}: {
+  cx?: number;
+  cy?: number;
+  payload?: { isLatest?: boolean };
+  stroke?: string;
+}) {
+  if (!payload?.isLatest || cx === undefined || cy === undefined) {
+    return null;
+  }
+
+  return (
+    <g>
+      <circle cx={cx} cy={cy} r={8} fill="rgba(255,255,255,0.08)" />
+      <circle
+        cx={cx}
+        cy={cy}
+        r={4}
+        fill={stroke ?? "#ffffff"}
+        stroke="#0b0b0b"
+        strokeWidth={1.5}
+      />
+    </g>
+  );
+}
+
+function TrendTooltip({
+  active,
+  payload,
+  label,
+  showTrend = false,
+}: {
+  active?: boolean;
+  payload?: Array<{
+    payload?: TrendPoint & {
+      isLatest?: boolean;
+      revenueTrend?: number;
+      expenseTrend?: number;
+      netTrend?: number;
+    };
+  }>;
+  label?: string;
+  showTrend?: boolean;
+}) {
+  const point = payload?.[0]?.payload;
+
+  if (!active || !point) {
+    return null;
+  }
+
+  return (
+    <div className="min-w-[220px] rounded-2xl border border-white/10 bg-[#151515] p-3 shadow-2xl backdrop-blur-xl">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+          {label ?? point.label}
+        </p>
+        {point.isLatest ? (
+          <span className="rounded-full border border-white/10 bg-white/6 px-2 py-1 text-[10px] font-medium uppercase tracking-[0.16em] text-white">
+            Latest
+          </span>
+        ) : null}
+      </div>
+      <div className="mt-3 space-y-2">
+        <TrendTooltipRow
+          color="var(--chart-1)"
+          label="Revenue"
+          value={point.revenue}
+          trendValue={showTrend ? point.revenueTrend : undefined}
+        />
+        <TrendTooltipRow
+          color="var(--chart-3)"
+          label="Expense"
+          value={point.expense}
+          trendValue={showTrend ? point.expenseTrend : undefined}
+        />
+        <TrendTooltipRow
+          color="var(--chart-4)"
+          label="Net"
+          value={point.net}
+          trendValue={showTrend ? point.netTrend : undefined}
+        />
+      </div>
+      {typeof point.adsRatio === "number" ? (
+        <div className="mt-3 border-t border-white/8 pt-3 text-xs text-[#9f9f9f]">
+          ADS ratio {formatPercent(point.adsRatio * 100)}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function TrendTooltipRow({
+  color,
+  label,
+  value,
+  trendValue,
+}: {
+  color: string;
+  label: string;
+  value: number;
+  trendValue?: number;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-4 text-sm">
+      <div className="flex items-start gap-2 text-muted-foreground">
+        <span
+          className="mt-1 size-2.5 rounded-full"
+          style={{ backgroundColor: color }}
+        />
+        <div>
+          <span>{label}</span>
+          {typeof trendValue === "number" ? (
+            <p className="mt-1 text-xs text-[#8f8f8f]">
+              Trend {formatCompactCurrency(trendValue)}
+            </p>
+          ) : null}
+        </div>
+      </div>
+      <div className="text-right">
+        <p className="font-medium text-foreground">
+          {formatCompactCurrency(value)}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+type TrendChartPoint = TrendPoint & {
+  isLatest: boolean;
+  revenueTrend?: number;
+  expenseTrend?: number;
+  netTrend?: number;
+};
+
+function SingleDayBarTooltip({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: Array<{
+    payload?: {
+      label: string;
+      value: number;
+      fill: string;
+      note: string;
+    };
+  }>;
+}) {
+  const item = payload?.[0]?.payload;
+
+  if (!active || !item) {
+    return null;
+  }
+
+  return (
+    <div className="min-w-[220px] rounded-2xl border border-white/10 bg-[#151515] p-3 shadow-2xl backdrop-blur-xl">
+      <div className="flex items-center gap-2">
+        <span
+          className="size-2.5 rounded-full"
+          style={{ backgroundColor: item.fill }}
+        />
+        <p className="text-sm font-medium text-white">{item.label}</p>
+      </div>
+      <p className="mt-3 text-2xl font-semibold text-white">
+        {formatCompactCurrency(item.value)}
+      </p>
+      <p className="mt-2 text-xs text-[#8f8f8f]">{item.note}</p>
+    </div>
+  );
+}
+
+export function SingleDayPerformanceChart({
+  revenue,
+  expense,
+  net,
+  dateLabel,
+}: {
+  revenue: number;
+  expense: number;
+  net: number;
+  dateLabel: string;
+}) {
+  const data = [
+    {
+      label: "Revenue",
+      value: revenue,
+      fill: "rgb(74 222 128 / 0.88)",
+      note: "Verified revenue for the selected day.",
+    },
+    {
+      label: "Expense",
+      value: expense,
+      fill: "rgb(161 161 170 / 0.82)",
+      note: "Verified expense for the selected day.",
+    },
+    {
+      label: "Net",
+      value: net,
+      fill:
+        net > 0
+          ? "rgb(45 212 191 / 0.9)"
+          : net < 0
+            ? "rgb(103 232 249 / 0.82)"
+            : "rgb(163 163 163 / 0.72)",
+      note: "Revenue minus expense from the same dataset.",
+    },
+  ];
+  const domain = getTrendDomain(
+    data.map((item) => ({
+      revenue: item.value,
+      expense: 0,
+      net: 0,
+    })),
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-[18px] border border-white/8 bg-[#121212] px-4 py-3">
+        <p className="text-sm font-medium text-white">
+          Single-day view — no trend available
+        </p>
+        <p className="mt-1 text-sm text-[#8f8f8f]">{dateLabel}</p>
+      </div>
+      <div className="h-72 w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+            <CartesianGrid stroke="rgb(255 255 255 / 0.08)" vertical={false} />
+            <XAxis
+              dataKey="label"
+              tickLine={false}
+              axisLine={false}
+              tickMargin={12}
+              tick={{ fill: "#7a7a7a", fontSize: 12 }}
+            />
+            <YAxis
+              tickLine={false}
+              axisLine={false}
+              width={64}
+              domain={domain}
+              tickCount={5}
+              tickFormatter={(value) => formatCompactCurrency(value)}
+              tick={{ fill: "#7a7a7a", fontSize: 12 }}
+            />
+            <ReferenceLine y={0} stroke="rgba(255,255,255,0.16)" />
+            <Tooltip cursor={{ fill: "rgba(255,255,255,0.03)" }} content={<SingleDayBarTooltip />} />
+            <Bar dataKey="value" radius={[12, 12, 0, 0]} maxBarSize={72}>
+              {data.map((item) => (
+                <Cell key={item.label} fill={item.fill} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
 export function TrendChart({
   data,
   dense = false,
   muted = false,
+  showTrend = false,
 }: {
   data: TrendPoint[];
   dense?: boolean;
   muted?: boolean;
+  showTrend?: boolean;
 }) {
+  const displayData = useMemo<TrendChartPoint[]>(() => {
+    if (!showTrend) {
+      return data.map((point, index) => ({
+        ...point,
+        isLatest: index === data.length - 1,
+      }));
+    }
+
+    const revenueSeries = data.map((point) => point.revenue);
+    const expenseSeries = data.map((point) => point.expense);
+    const netSeries = data.map((point) => point.net);
+
+    return data.map((point, index) => ({
+      ...point,
+      isLatest: index === data.length - 1,
+      revenueTrend: calculateMovingAverage(revenueSeries, index),
+      expenseTrend: calculateMovingAverage(expenseSeries, index),
+      netTrend: calculateMovingAverage(netSeries, index),
+    }));
+  }, [data, showTrend]);
+
+  const yDomain = useMemo(
+    () =>
+      getTrendDomain(
+        displayData.map((point) => ({
+          revenue:
+            showTrend && typeof point.revenueTrend === "number"
+              ? Math.abs(point.revenueTrend) > Math.abs(point.revenue)
+                ? point.revenueTrend
+                : point.revenue
+              : point.revenue,
+          expense:
+            showTrend && typeof point.expenseTrend === "number"
+              ? Math.abs(point.expenseTrend) > Math.abs(point.expense)
+                ? point.expenseTrend
+                : point.expense
+              : point.expense,
+          net:
+            showTrend && typeof point.netTrend === "number"
+              ? Math.abs(point.netTrend) > Math.abs(point.net)
+                ? point.netTrend
+                : point.net
+              : point.net,
+        })),
+      ),
+    [displayData, showTrend],
+  );
+  const latestPoint = displayData.at(-1);
+
   return (
-    <div className={dense ? "h-72 w-full" : "h-80 w-full"}>
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data}>
+    <div className="space-y-3">
+      <div className={dense ? "h-72 w-full" : "h-80 w-full"}>
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={displayData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
           <CartesianGrid stroke="rgb(255 255 255 / 0.08)" vertical={false} />
           <XAxis
             dataKey="label"
@@ -373,40 +721,100 @@ export function TrendChart({
             tickLine={false}
             axisLine={false}
             width={64}
+            domain={yDomain}
+            tickCount={5}
             tickFormatter={(value) => formatCompactCurrency(value)}
             tick={{ fill: "#7a7a7a", fontSize: 12 }}
           />
-          <Tooltip content={<CurrencyTooltip />} />
+          {latestPoint ? (
+            <ReferenceLine
+              x={latestPoint.label}
+              stroke="rgba(255,255,255,0.12)"
+              strokeDasharray="4 4"
+            />
+          ) : null}
+          <Tooltip content={<TrendTooltip showTrend={showTrend} />} />
           <Line
-            type="monotone"
+            type="linear"
             dataKey="revenue"
             stroke={muted ? "rgb(141 211 149 / 0.72)" : "var(--chart-1)"}
             strokeWidth={muted ? 2 : 2.5}
             strokeOpacity={muted ? 0.78 : 1}
-            dot={false}
+            dot={<TrendLatestDot />}
+            activeDot={{ r: 5, fill: muted ? "rgb(141 211 149 / 0.92)" : "var(--chart-1)" }}
             name="Revenue"
           />
+          {showTrend ? (
+            <Line
+              type="monotone"
+              dataKey="revenueTrend"
+              stroke={muted ? "rgb(141 211 149 / 0.34)" : "rgb(141 211 149 / 0.46)"}
+              strokeWidth={1.5}
+              strokeDasharray="4 5"
+              strokeOpacity={0.7}
+              dot={false}
+              activeDot={false}
+              isAnimationActive={false}
+              name="Revenue trend"
+            />
+          ) : null}
           <Line
-            type="monotone"
+            type="linear"
             dataKey="expense"
             stroke={muted ? "rgb(176 176 181 / 0.72)" : "var(--chart-3)"}
             strokeWidth={2}
             strokeOpacity={muted ? 0.72 : 1}
-            dot={false}
+            dot={<TrendLatestDot />}
+            activeDot={{ r: 5, fill: muted ? "rgb(176 176 181 / 0.88)" : "var(--chart-3)" }}
             name="Expense"
           />
+          {showTrend ? (
+            <Line
+              type="monotone"
+              dataKey="expenseTrend"
+              stroke={muted ? "rgb(176 176 181 / 0.3)" : "rgb(176 176 181 / 0.42)"}
+              strokeWidth={1.5}
+              strokeDasharray="4 5"
+              strokeOpacity={0.68}
+              dot={false}
+              activeDot={false}
+              isAnimationActive={false}
+              name="Expense trend"
+            />
+          ) : null}
           <Line
-            type="monotone"
+            type="linear"
             dataKey="net"
             stroke={muted ? "rgb(240 190 110 / 0.78)" : "var(--chart-4)"}
             strokeWidth={2}
             strokeOpacity={muted ? 0.82 : 1}
             strokeDasharray="6 4"
-            dot={false}
+            dot={<TrendLatestDot />}
+            activeDot={{ r: 5, fill: muted ? "rgb(240 190 110 / 0.92)" : "var(--chart-4)" }}
             name="Net"
           />
-        </LineChart>
-      </ResponsiveContainer>
+          {showTrend ? (
+            <Line
+              type="monotone"
+              dataKey="netTrend"
+              stroke={muted ? "rgb(240 190 110 / 0.32)" : "rgb(240 190 110 / 0.44)"}
+              strokeWidth={1.5}
+              strokeDasharray="4 5"
+              strokeOpacity={0.7}
+              dot={false}
+              activeDot={false}
+              isAnimationActive={false}
+              name="Net trend"
+            />
+          ) : null}
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-[#8f8f8f]">
+        <span>Solid lines show actual daily values.</span>
+        {showTrend ? <span>Dashed lines show the optional trend view.</span> : null}
+        <span>The latest day is highlighted for quick comparison.</span>
+      </div>
     </div>
   );
 }

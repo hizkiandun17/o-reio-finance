@@ -4,15 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import * as React from "react";
 import {
-  BookOpenText,
   ChevronRight,
   Database,
   LayoutDashboard,
-  Link2,
   Menu,
   MoonStar,
   Bell,
   Receipt,
+  Settings2,
   ShieldCheck,
   SunMedium,
   UserCircle2,
@@ -39,11 +38,9 @@ type NavItem = {
 const navItems: NavItem[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, roles: ["OWNER", "OPS_MANAGER"] },
   { href: "/transactions", label: "Transactions", icon: Receipt, roles: ["OWNER", "OPS_MANAGER", "FINANCE"] },
-  { href: "/manual-inputs", label: "Manual Inputs", icon: WalletCards, roles: ["OWNER", "FINANCE"] },
+  { href: "/manual-inputs", label: "Manual Input", icon: WalletCards, roles: ["OWNER", "FINANCE"] },
   { href: "/reconciliation", label: "Reconciliation", icon: ShieldCheck, roles: ["OWNER", "OPS_MANAGER", "FINANCE"] },
-  { href: "/rules", label: "Rules", icon: BookOpenText, roles: ["OWNER", "OPS_MANAGER"] },
   { href: "/reports", label: "Reports", icon: Database, roles: ["OWNER", "OPS_MANAGER", "FINANCE"] },
-  { href: "/integrations", label: "Integrations", icon: Link2, roles: ["OWNER", "OPS_MANAGER"] },
 ];
 
 const pageMeta: Record<string, { title: string; kicker: string }> = {
@@ -52,9 +49,10 @@ const pageMeta: Record<string, { title: string; kicker: string }> = {
   "/transactions/detail": { title: "Transaction detail", kicker: "Ledger record" },
   "/manual-inputs": { title: "Manual capture", kicker: "Finance workspace" },
   "/reconciliation": { title: "Data completeness", kicker: "Trust the numbers" },
-  "/rules": { title: "Keyword engine", kicker: "Auto categorization" },
   "/reports": { title: "Financial trajectory", kicker: "Decision support" },
-  "/integrations": { title: "Connected systems", kicker: "Operational health" },
+  "/integrations": { title: "Connected systems", kicker: "Configuration layer" },
+  "/rules": { title: "Keyword engine", kicker: "Configuration layer" },
+  "/settings": { title: "Settings", kicker: "Configuration layer" },
 };
 
 function NavContent({ onNavigate }: { onNavigate?: () => void }) {
@@ -165,6 +163,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <SelectItem value="FINANCE">Finance</SelectItem>
                 </SelectContent>
               </Select>
+
+              <Link
+                href="/settings"
+                className={cn(
+                  "inline-flex h-10 items-center gap-2 rounded-xl border border-white/10 bg-[#171717] px-3 text-white transition hover:bg-white/8",
+                  pathname === "/settings" && "border-white/20 bg-white/8",
+                )}
+              >
+                <Settings2 className="size-4" />
+                <span className="hidden text-xs font-medium uppercase tracking-[0.18em] md:inline">
+                  Settings
+                </span>
+              </Link>
 
               <Button
                 variant="ghost"

@@ -32,10 +32,13 @@ import {
   getCategoryLabel,
   getExpenseGroupForCategory,
   getMainCategoryLabel,
+  normalizeTransactions,
 } from "@/lib/business";
 import { formatCurrency, formatDate, formatPercent } from "@/lib/format";
+import { accounts as accountSeed } from "@/lib/mock-data";
 import { getSourceDisplayName } from "@/lib/source-display";
 import type {
+  Account,
   Category,
   EntryType,
   ExpenseGroup,
@@ -46,15 +49,33 @@ import type {
 import { cn } from "@/lib/utils";
 
 type LedgerFilterState = {
-  channelId: string;
+  businessChannel: string;
+  accountId: string;
   categoryId: string;
   verificationStatus: "all" | VerificationStatus;
   entryType: "all" | EntryType;
   currency: string;
 };
 
+type LedgerBusinessChannel =
+  | "shopify"
+  | "tiktok"
+  | "wholesale"
+  | "consignment"
+  | "offline_store"
+  | "manual";
+
+type LedgerTransactionRow = {
+  transaction: Transaction;
+  accountId: string;
+  accountLabel: string;
+  businessChannel: LedgerBusinessChannel;
+  businessChannelLabel: string;
+};
+
 const defaultFilters: LedgerFilterState = {
-  channelId: "all",
+  businessChannel: "all",
+  accountId: "all",
   categoryId: "all",
   verificationStatus: "all",
   entryType: "all",
@@ -62,7 +83,7 @@ const defaultFilters: LedgerFilterState = {
 };
 
 export default function TransactionsPage() {
-  const { categories, categoryMap, channels, dashboard, transactions } =
+  const { categories, categoryMap, dashboard, transactions } =
     useAppState();
   const [query, setQuery] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -71,14 +92,60 @@ export default function TransactionsPage() {
   const [previewProof, setPreviewProof] = useState<TransactionProof | null>(null);
   const deferredQuery = useDeferredValue(query);
 
+  const unifiedTransactions = useMemo(
+    () => normalizeTransactions(transactions, categoryMap),
+    [categoryMap, transactions],
+  );
+
+  const ledgerRows = useMemo<LedgerTransactionRow[]>(
+    () =>
+      transactions.map((transaction, index) => {
+        const normalized = unifiedTransactions[index];
+        const businessChannel = resolveLedgerBusinessChannel(transaction);
+        const resolvedAccountId = transaction.accountId ?? normalized.account_id;
+        const resolvedAccount = resolveLedgerAccount(resolvedAccountId);
+
+        return {
+          transaction,
+          businessChannel,
+          businessChannelLabel: getLedgerBusinessChannelLabel(businessChannel),
+          accountId: resolvedAccountId,
+          accountLabel: resolvedAccount.name,
+        };
+      }),
+    [transactions, unifiedTransactions],
+  );
+
+  const accountOptions = useMemo(
+    () =>
+      [...new Map(
+        ledgerRows.map((row) => {
+          const resolvedAccount = resolveLedgerAccount(row.accountId);
+
+          return [
+            row.accountId,
+            {
+              value: row.accountId,
+              label: resolvedAccount.name,
+            },
+          ] as const;
+        }),
+      ).values()].sort((left, right) => left.label.localeCompare(right.label)),
+    [ledgerRows],
+  );
+
   const filteredTransactions = useMemo(() => {
-    return transactions.filter((transaction) => {
+    return ledgerRows.filter((row) => {
+      const transaction = row.transaction;
       const matchesQuery =
         deferredQuery.length === 0 ||
         transaction.description.toLowerCase().includes(deferredQuery.toLowerCase());
-      const matchesChannel =
-        appliedFilters.channelId === "all" ||
-        transaction.channelId === appliedFilters.channelId;
+      const matchesBusinessChannel =
+        appliedFilters.businessChannel === "all" ||
+        row.businessChannel === appliedFilters.businessChannel;
+      const matchesAccount =
+        appliedFilters.accountId === "all" ||
+        row.accountId === appliedFilters.accountId;
       const matchesEntry =
         appliedFilters.entryType === "all" ||
         transaction.entryType === appliedFilters.entryType;
@@ -94,7 +161,8 @@ export default function TransactionsPage() {
 
       return (
         matchesQuery &&
-        matchesChannel &&
+        matchesBusinessChannel &&
+        matchesAccount &&
         matchesEntry &&
         matchesCurrency &&
         matchesVerification &&
@@ -104,7 +172,7 @@ export default function TransactionsPage() {
   }, [
     appliedFilters,
     deferredQuery,
-    transactions,
+    ledgerRows,
   ]);
 
   const categoryOptions = useMemo(
@@ -130,7 +198,7 @@ export default function TransactionsPage() {
     }
 
     const sortedAmounts = [...filteredTransactions]
-      .map((transaction) => transaction.baseAmount)
+      .map((row) => row.transaction.baseAmount)
       .sort((left, right) => right - left);
     const topCount = Math.max(1, Math.ceil(sortedAmounts.length * 0.1));
 
@@ -147,7 +215,7 @@ export default function TransactionsPage() {
       <PageHeader
         eyebrow="Ledger view"
         title="Unified transaction stream"
-        description="Inspect every auto-synced and manually entered movement with filtering for channel, verification, entry type, and currency."
+        description="Inspect every auto-synced and manually entered movement with separate filtering for business channel, payment account, verification, entry type, and currency."
       />
 
       <p className="text-sm text-[#b7b7b7]">{ledgerInsight}</p>
@@ -168,8 +236,8 @@ export default function TransactionsPage() {
             <CardTitle className="text-3xl">
               {formatCurrency(
                 filteredTransactions
-                  .filter((item) => item.kind === "INCOME")
-                  .reduce((sum, item) => sum + item.baseAmount, 0),
+                  .filter(({ transaction }) => transaction.kind === "INCOME")
+                  .reduce((sum, { transaction }) => sum + transaction.baseAmount, 0),
               )}
             </CardTitle>
           </CardHeader>
@@ -183,8 +251,8 @@ export default function TransactionsPage() {
             <CardTitle className="text-3xl">
               {formatCurrency(
                 filteredTransactions
-                  .filter((item) => item.kind === "EXPENSE")
-                  .reduce((sum, item) => sum + item.baseAmount, 0),
+                  .filter(({ transaction }) => transaction.kind === "EXPENSE")
+                  .reduce((sum, { transaction }) => sum + transaction.baseAmount, 0),
               )}
             </CardTitle>
           </CardHeader>
@@ -198,7 +266,7 @@ export default function TransactionsPage() {
             <CardTitle className="text-3xl">
               {
                 filteredTransactions.filter(
-                  (item) => item.verificationStatus === "PENDING",
+                  ({ transaction }) => transaction.verificationStatus === "PENDING",
                 ).length
               }
             </CardTitle>
@@ -258,7 +326,8 @@ export default function TransactionsPage() {
                 <TableRow className="border-white/8">
                   <TableHead>Date</TableHead>
                   <TableHead>Description</TableHead>
-                  <TableHead>Channel</TableHead>
+                  <TableHead>Business Channel</TableHead>
+                  <TableHead>Account</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Entry</TableHead>
                   <TableHead>Currency</TableHead>
@@ -268,7 +337,8 @@ export default function TransactionsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredTransactions.map((transaction) => {
+                {filteredTransactions.map((row) => {
+                  const transaction = row.transaction;
                   const expenseGroup =
                     transaction.kind === "EXPENSE"
                       ? getExpenseGroupForCategory(transaction.categoryId, categoryMap)
@@ -322,7 +392,8 @@ export default function TransactionsPage() {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell>{getSourceDisplayName(transaction.channelId)}</TableCell>
+                      <TableCell>{row.businessChannelLabel}</TableCell>
+                      <TableCell>{row.accountLabel}</TableCell>
                       <TableCell>
                         <div className="flex items-start gap-2">
                           <span
@@ -397,23 +468,52 @@ export default function TransactionsPage() {
 
           <div className="grid gap-4 py-2 md:grid-cols-2">
             <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Channel</p>
+              <p className="text-sm text-muted-foreground">Business Channel</p>
               <Select
-                value={draftFilters.channelId}
+                value={draftFilters.businessChannel}
                 onValueChange={(value) =>
-                  value && setDraftFilters((current) => ({ ...current, channelId: value }))
+                  value &&
+                  setDraftFilters((current) => ({ ...current, businessChannel: value }))
                 }
               >
                 <SelectTrigger className="h-10 w-full rounded-2xl bg-[#121212]">
-                  <SelectValue placeholder="All channels" />
+                  <SelectValue placeholder="All business channels" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All channels</SelectItem>
-                  {channels.map((channel) => (
-                    <SelectItem key={channel.id} value={channel.id}>
-                      {channel.name}
+                  <SelectItem value="all">All business channels</SelectItem>
+                  {BUSINESS_CHANNEL_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">Account</p>
+                <Select
+                value={draftFilters.accountId}
+                onValueChange={(value) =>
+                  value && setDraftFilters((current) => ({ ...current, accountId: value }))
+                }
+              >
+                <SelectTrigger className="h-10 w-full rounded-2xl bg-[#121212]">
+                  <SelectValue placeholder="All accounts" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All accounts</SelectItem>
+                  {accountOptions.length > 0 ? (
+                    accountOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="no-accounts" disabled>
+                      No accounts in dataset
+                    </SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -544,19 +644,19 @@ export default function TransactionsPage() {
 }
 
 function getLedgerInsight(
-  transactions: Transaction[],
+  rows: LedgerTransactionRow[],
   categoryMap: Record<string, Category>,
 ) {
-  const expenses = transactions.filter((transaction) => transaction.kind === "EXPENSE");
+  const expenses = rows.filter(({ transaction }) => transaction.kind === "EXPENSE");
 
   if (expenses.length === 0) {
     return "Current filters show no expense pressure in the ledger.";
   }
 
   const expenseGroupTotals = new Map<ExpenseGroup, number>();
-  const expenseChannelTotals = new Map<string, number>();
+  const expenseAccountTotals = new Map<string, number>();
 
-  expenses.forEach((transaction) => {
+  expenses.forEach(({ transaction, accountLabel }) => {
     const group = getExpenseGroupForCategory(transaction.categoryId, categoryMap);
     if (group) {
       expenseGroupTotals.set(
@@ -565,27 +665,30 @@ function getLedgerInsight(
       );
     }
 
-    expenseChannelTotals.set(
-      transaction.channelId,
-      (expenseChannelTotals.get(transaction.channelId) ?? 0) + transaction.baseAmount,
+    expenseAccountTotals.set(
+      accountLabel,
+      (expenseAccountTotals.get(accountLabel) ?? 0) + transaction.baseAmount,
     );
   });
 
   const topExpenseGroup = [...expenseGroupTotals.entries()].sort(
     (left, right) => right[1] - left[1],
   )[0];
-  const topExpenseChannel = [...expenseChannelTotals.entries()].sort(
+  const topExpenseAccount = [...expenseAccountTotals.entries()].sort(
     (left, right) => right[1] - left[1],
   )[0];
 
-  if (!topExpenseGroup || !topExpenseChannel) {
+  if (!topExpenseGroup || !topExpenseAccount) {
     return "Expense activity is limited in the current ledger view.";
   }
 
-  const totalExpense = expenses.reduce((sum, transaction) => sum + transaction.baseAmount, 0);
+  const totalExpense = expenses.reduce(
+    (sum, { transaction }) => sum + transaction.baseAmount,
+    0,
+  );
   const share = totalExpense === 0 ? 0 : (topExpenseGroup[1] / totalExpense) * 100;
 
-  return `Most expenses are in ${getMainCategoryLabel(topExpenseGroup[0])} (${formatPercent(share)}), mainly from ${getSourceDisplayName(topExpenseChannel[0])}.`;
+  return `Most expenses are in ${getMainCategoryLabel(topExpenseGroup[0])} (${formatPercent(share)}), mainly paid through ${topExpenseAccount[0]}.`;
 }
 
 function getActiveFilterBadges(
@@ -594,9 +697,18 @@ function getActiveFilterBadges(
 ) {
   const badges: { label: string }[] = [];
 
-  if (filters.channelId !== "all") {
+  if (filters.businessChannel !== "all") {
     badges.push({
-      label: `Channel: ${getSourceDisplayName(filters.channelId)}`,
+      label: `Business Channel: ${getLedgerBusinessChannelLabel(
+        filters.businessChannel as LedgerBusinessChannel,
+      )}`,
+    });
+  }
+
+  if (filters.accountId !== "all") {
+    const resolvedAccount = resolveLedgerAccount(filters.accountId);
+    badges.push({
+      label: `Account: ${resolvedAccount.name}`,
     });
   }
 
@@ -625,6 +737,105 @@ function getActiveFilterBadges(
   }
 
   return badges;
+}
+
+const BUSINESS_CHANNEL_OPTIONS: Array<{
+  value: LedgerBusinessChannel;
+  label: string;
+}> = [
+  { value: "shopify", label: "Shopify" },
+  { value: "tiktok", label: "TikTok" },
+  { value: "wholesale", label: "Wholesale" },
+  { value: "consignment", label: "Consignment" },
+  { value: "offline_store", label: "Offline Store" },
+  { value: "manual", label: "Manual" },
+];
+
+function getLedgerBusinessChannelLabel(channel: LedgerBusinessChannel) {
+  return (
+    BUSINESS_CHANNEL_OPTIONS.find((option) => option.value === channel)?.label ?? channel
+  );
+}
+
+function resolveLedgerAccount(accountId: string): Account | { id: string; name: string } {
+  const matchingAccount = accountSeed.find((account) => account.id === accountId);
+
+  if (matchingAccount) {
+    return matchingAccount;
+  }
+
+  return {
+    id: accountId,
+    name: normalizeAccountLabel(getSourceDisplayName(accountId)),
+  };
+}
+
+function normalizeAccountLabel(label: string) {
+  return label
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => {
+      if (part.toUpperCase() === part) {
+        return part;
+      }
+
+      return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+    })
+    .join(" ");
+}
+
+function resolveLedgerBusinessChannel(
+  transaction: Transaction,
+): LedgerBusinessChannel {
+  switch (transaction.categoryId) {
+    case "cat_income_shopify":
+      return "shopify";
+    case "cat_income_tiktok":
+      return "tiktok";
+    case "cat_income_wholesale":
+      return "wholesale";
+    case "cat_income_consignment":
+      return "consignment";
+    case "cat_income_offline":
+      return "offline_store";
+    default:
+      break;
+  }
+
+  switch (transaction.channelId) {
+    case "chn_shopify":
+      return "shopify";
+    case "chn_tiktok":
+      return "tiktok";
+    case "chn_offline":
+      return "offline_store";
+    default:
+      break;
+  }
+
+  const description = transaction.description.toLowerCase();
+
+  if (description.includes("wholesale")) {
+    return "wholesale";
+  }
+
+  if (description.includes("consignment")) {
+    return "consignment";
+  }
+
+  if (description.includes("shopify")) {
+    return "shopify";
+  }
+
+  if (description.includes("tiktok")) {
+    return "tiktok";
+  }
+
+  if (description.includes("offline")) {
+    return "offline_store";
+  }
+
+  return "manual";
 }
 
 function getExpenseGroupTone(group: ExpenseGroup | undefined | null) {

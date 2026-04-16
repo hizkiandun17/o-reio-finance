@@ -170,10 +170,13 @@ describe("daily finance view helpers", () => {
       },
       trend: [
         {
+          date: "2026-04-09",
           label: "09 Apr",
           revenue: 1500000,
           expense: 0,
           net: 1500000,
+          growthExpense: 0,
+          adsRatio: 0,
         },
       ],
       reconciliation: {
@@ -313,9 +316,33 @@ describe("daily finance view helpers", () => {
     });
     expect(view.expenseBreakdown.total).toBe(350000);
     expect(view.trend).toEqual([
-      { label: "08 Apr", revenue: 1000000, expense: 0, net: 1000000 },
-      { label: "09 Apr", revenue: 0, expense: 200000, net: -200000 },
-      { label: "10 Apr", revenue: 0, expense: 150000, net: -150000 },
+      {
+        date: "2026-04-08",
+        label: "08 Apr",
+        revenue: 1000000,
+        expense: 0,
+        net: 1000000,
+        growthExpense: 0,
+        adsRatio: 0,
+      },
+      {
+        date: "2026-04-09",
+        label: "09 Apr",
+        revenue: 0,
+        expense: 200000,
+        net: -200000,
+        growthExpense: 200000,
+        adsRatio: 0,
+      },
+      {
+        date: "2026-04-10",
+        label: "10 Apr",
+        revenue: 0,
+        expense: 150000,
+        net: -150000,
+        growthExpense: 0,
+        adsRatio: 0,
+      },
     ]);
     expect(view.comparison).toEqual({
       selection: {
@@ -326,23 +353,220 @@ describe("daily finance view helpers", () => {
         current: 0.2,
         previous: 0,
         deltaPercent: null,
-        direction: "up",
-        trend: "worse",
+        direction: "flat",
+        trend: "neutral",
+        availability: "no_baseline",
       },
       revenue: {
         current: 1000000,
         previous: 0,
         deltaPercent: null,
-        direction: "up",
-        trend: "better",
+        direction: "flat",
+        trend: "neutral",
+        availability: "no_baseline",
       },
       net: {
         current: 650000,
         previous: 0,
         deltaPercent: null,
-        direction: "up",
-        trend: "better",
+        direction: "flat",
+        trend: "neutral",
+        availability: "no_baseline",
       },
+    });
+  });
+
+  it("marks ads ratio as not comparable when previous revenue is zero", () => {
+    const accounts: Account[] = [
+      {
+        id: "bca_pt",
+        name: "BCA PT",
+        currency: "IDR",
+        source: "auto",
+        type: "bank",
+      },
+    ];
+
+    const transactions: UnifiedTransaction[] = [
+      {
+        id: "utx_dfv_ads_current_revenue",
+        type: "income",
+        account_id: "bca_pt",
+        channel: "shopify",
+        category_group: null,
+        category_name: null,
+        status: "verified",
+        origin: "manual",
+        amount: 1000000,
+        original_currency: "IDR",
+        exchange_rate: 1,
+        base_amount: 1000000,
+        transaction_date: "2026-04-10T09:00:00+08:00",
+        description: "Shopify payout",
+        proof: null,
+        logged_by: "usr_finance",
+      },
+      {
+        id: "utx_dfv_ads_current_growth",
+        type: "expense",
+        account_id: "bca_pt",
+        channel: null,
+        category_group: "growth",
+        category_name: "Ads",
+        status: "verified",
+        origin: "manual",
+        amount: 200000,
+        original_currency: "IDR",
+        exchange_rate: 1,
+        base_amount: 200000,
+        transaction_date: "2026-04-10T12:00:00+08:00",
+        description: "Ads spend",
+        proof: null,
+        logged_by: "usr_finance",
+      },
+      {
+        id: "utx_dfv_ads_previous_expense",
+        type: "expense",
+        account_id: "bca_pt",
+        channel: null,
+        category_group: "overhead",
+        category_name: "Rent",
+        status: "verified",
+        origin: "manual",
+        amount: 100000,
+        original_currency: "IDR",
+        exchange_rate: 1,
+        base_amount: 100000,
+        transaction_date: "2026-04-09T10:00:00+08:00",
+        description: "Rent",
+        proof: null,
+        logged_by: "usr_finance",
+      },
+    ];
+
+    const snapshot: DailyCashSnapshot = {
+      date: "2026-04-09",
+      accounts: [],
+      total_balance: 0,
+      closingBalance: 0,
+      currency: "IDR",
+      capturedAt: "2026-04-10T00:05:00+07:00",
+      sourceCount: 0,
+      status: "COMPLETE",
+      metadata: {
+        includedChannelIds: [],
+        missingChannelIds: [],
+        availableChannelIds: [],
+        accountBreakdown: [],
+      },
+    };
+
+    const view = buildDailyFinanceView(accounts, transactions, snapshot, {
+      startDate: "2026-04-10",
+      endDate: "2026-04-10",
+    });
+
+    expect(view.comparison.adsRatio).toMatchObject({
+      availability: "not_comparable",
+      direction: "flat",
+      trend: "neutral",
+    });
+  });
+
+  it("marks ads ratio as first recorded when previous period had revenue but no growth expense", () => {
+    const accounts: Account[] = [
+      {
+        id: "bca_pt",
+        name: "BCA PT",
+        currency: "IDR",
+        source: "auto",
+        type: "bank",
+      },
+    ];
+
+    const transactions: UnifiedTransaction[] = [
+      {
+        id: "utx_dfv_ads_first_current_revenue",
+        type: "income",
+        account_id: "bca_pt",
+        channel: "shopify",
+        category_group: null,
+        category_name: null,
+        status: "verified",
+        origin: "manual",
+        amount: 1200000,
+        original_currency: "IDR",
+        exchange_rate: 1,
+        base_amount: 1200000,
+        transaction_date: "2026-04-10T09:00:00+08:00",
+        description: "Shopify payout",
+        proof: null,
+        logged_by: "usr_finance",
+      },
+      {
+        id: "utx_dfv_ads_first_current_growth",
+        type: "expense",
+        account_id: "bca_pt",
+        channel: null,
+        category_group: "growth",
+        category_name: "Ads",
+        status: "verified",
+        origin: "manual",
+        amount: 240000,
+        original_currency: "IDR",
+        exchange_rate: 1,
+        base_amount: 240000,
+        transaction_date: "2026-04-10T12:00:00+08:00",
+        description: "Ads spend",
+        proof: null,
+        logged_by: "usr_finance",
+      },
+      {
+        id: "utx_dfv_ads_first_previous_revenue",
+        type: "income",
+        account_id: "bca_pt",
+        channel: "shopify",
+        category_group: null,
+        category_name: null,
+        status: "verified",
+        origin: "manual",
+        amount: 900000,
+        original_currency: "IDR",
+        exchange_rate: 1,
+        base_amount: 900000,
+        transaction_date: "2026-04-09T09:00:00+08:00",
+        description: "Prior Shopify payout",
+        proof: null,
+        logged_by: "usr_finance",
+      },
+    ];
+
+    const snapshot: DailyCashSnapshot = {
+      date: "2026-04-09",
+      accounts: [],
+      total_balance: 0,
+      closingBalance: 0,
+      currency: "IDR",
+      capturedAt: "2026-04-10T00:05:00+07:00",
+      sourceCount: 0,
+      status: "COMPLETE",
+      metadata: {
+        includedChannelIds: [],
+        missingChannelIds: [],
+        availableChannelIds: [],
+        accountBreakdown: [],
+      },
+    };
+
+    const view = buildDailyFinanceView(accounts, transactions, snapshot, {
+      startDate: "2026-04-10",
+      endDate: "2026-04-10",
+    });
+
+    expect(view.comparison.adsRatio).toMatchObject({
+      availability: "first_recorded",
+      direction: "flat",
+      trend: "neutral",
     });
   });
 
@@ -572,7 +796,15 @@ describe("daily finance view helpers", () => {
     });
     expect(view.expenseBreakdown.total).toBe(400000);
     expect(view.trend).toEqual([
-      { label: "09 Apr", revenue: 1000000, expense: 400000, net: 600000 },
+      {
+        date: "2026-04-09",
+        label: "09 Apr",
+        revenue: 1000000,
+        expense: 400000,
+        net: 600000,
+        growthExpense: 250000,
+        adsRatio: 0.25,
+      },
     ]);
   });
 });

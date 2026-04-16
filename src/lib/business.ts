@@ -195,6 +195,78 @@ function mapLegacyChannelIdToAccountId(channelId: string) {
   return channelId;
 }
 
+export function resolveTransactionAccountId(transaction: Transaction) {
+  if (transaction.accountId) {
+    return transaction.accountId;
+  }
+
+  const description = transaction.description.toLowerCase();
+
+  if (transaction.categoryId === "cat_income_tiktok" || transaction.channelId === "chn_tiktok") {
+    return "tiktok_settlement";
+  }
+
+  if (
+    transaction.categoryId === "cat_growth_promote_tiktok_ads" ||
+    description.includes("tiktok ads") ||
+    description.includes("aspire")
+  ) {
+    return "aspire_sgd";
+  }
+
+  if (
+    transaction.categoryId === "cat_growth_promote_online_ads" ||
+    description.includes("facebook ads") ||
+    description.includes("meta ads")
+  ) {
+    return "bca_credit_card";
+  }
+
+  if (
+    transaction.categoryId === "cat_cost_shipping_grab" ||
+    description.includes("ovo") ||
+    description.includes("grab shipping")
+  ) {
+    return "bca_blu";
+  }
+
+  if (transaction.categoryId === "cat_income_shopify") {
+    return description.includes("wise") ? "wise" : "pingpong";
+  }
+
+  if (transaction.categoryId === "cat_income_wholesale") {
+    if (description.includes("bca cv")) {
+      return "bca_cv";
+    }
+
+    return "wise";
+  }
+
+  if (transaction.categoryId === "cat_income_consignment") {
+    return "wise";
+  }
+
+  if (transaction.categoryId === "cat_income_offline") {
+    return "bca_blu";
+  }
+
+  if (
+    transaction.categoryId === "cat_cost_production_material" ||
+    transaction.categoryId === "cat_cost_production_worker"
+  ) {
+    return transaction.originalCurrency === "SGD" ? "bca_sgd_cv" : "bca_cv";
+  }
+
+  if (
+    transaction.categoryId === "cat_overhead_office_operational" &&
+    transaction.channelId === "chn_aspire"
+  ) {
+    return "aspire_eur";
+  }
+
+  return mapLegacyChannelIdToAccountId(transaction.channelId);
+}
+
 function isInRange(date: string, mode: ViewMode) {
   const parsed = parseISO(date);
   return mode === "daily"
@@ -375,7 +447,7 @@ export function normalizeTransaction(
   return {
     id: transaction.id,
     type: transaction.kind === "INCOME" ? "income" : "expense",
-    account_id: mapLegacyChannelIdToAccountId(transaction.channelId),
+    account_id: resolveTransactionAccountId(transaction),
     target_account_id: null,
     channel: transaction.channelId,
     category_id: transaction.categoryId,

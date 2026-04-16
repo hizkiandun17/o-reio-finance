@@ -180,6 +180,7 @@ export interface Transaction {
   verificationStatus: VerificationStatus;
   categoryId: string;
   channelId: string;
+  accountId?: string;
   proof?: TransactionProof | null;
   loggedBy?: string | null;
 }
@@ -248,10 +249,13 @@ export interface DashboardExpenseBreakdown {
 }
 
 export interface TrendPoint {
+  date?: string;
   label: string;
   revenue: number;
   expense: number;
   net: number;
+  growthExpense?: number;
+  adsRatio?: number;
 }
 
 export interface ChannelSnapshotItem {
@@ -300,6 +304,7 @@ export interface ManualEntryInput {
   kind: TransactionKind;
   categoryId: string;
   channelId: string;
+  accountId?: string;
   proof?: TransactionProof | null;
 }
 
@@ -312,6 +317,7 @@ export interface TransactionUpdateInput {
   kind: TransactionKind;
   categoryId: string;
   channelId: string;
+  accountId?: string;
 }
 
 export interface KeywordRuleInput {

@@ -436,6 +436,7 @@ export function adaptUnifiedTransactionToLegacyTransaction(
       transaction.status === "verified" ? "VERIFIED" : "PENDING",
     categoryId: options.categoryId,
     channelId: transaction.account_id,
+    accountId: transaction.account_id,
     proof: transaction.proof ?? null,
     loggedBy: transaction.logged_by ?? null,
   };

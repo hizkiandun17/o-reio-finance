@@ -353,6 +353,7 @@ export const transactions: Transaction[] = [
     verificationStatus: "VERIFIED",
     categoryId: "cat_income_shopify",
     channelId: "chn_pingpong",
+    accountId: "pingpong",
     proof: sampleTransactionProof,
     loggedBy: "usr_finance",
   },
@@ -369,6 +370,7 @@ export const transactions: Transaction[] = [
     verificationStatus: "PENDING",
     categoryId: "cat_income_wholesale",
     channelId: "chn_wise",
+    accountId: "wise",
     loggedBy: "usr_finance",
   },
   {
@@ -384,6 +386,7 @@ export const transactions: Transaction[] = [
     verificationStatus: "VERIFIED",
     categoryId: "cat_income_tiktok",
     channelId: "chn_tiktok",
+    accountId: "tiktok_settlement",
   },
   {
     id: "txn_apr_fb_ads",
@@ -398,6 +401,7 @@ export const transactions: Transaction[] = [
     verificationStatus: "VERIFIED",
     categoryId: "cat_growth_promote_online_ads",
     channelId: "chn_bca",
+    accountId: "bca_credit_card",
   },
   {
     id: "txn_apr_tiktok_ads",
@@ -412,6 +416,7 @@ export const transactions: Transaction[] = [
     verificationStatus: "PENDING",
     categoryId: "cat_growth_promote_tiktok_ads",
     channelId: "chn_aspire",
+    accountId: "aspire_sgd",
     loggedBy: "usr_finance",
   },
   {
@@ -427,6 +432,7 @@ export const transactions: Transaction[] = [
     verificationStatus: "VERIFIED",
     categoryId: "cat_overhead_office_salaries",
     channelId: "chn_bca",
+    accountId: "bca_pt",
     loggedBy: "usr_finance",
   },
   {
@@ -442,6 +448,7 @@ export const transactions: Transaction[] = [
     verificationStatus: "VERIFIED",
     categoryId: "cat_cost_production_material",
     channelId: "chn_bca",
+    accountId: "bca_cv",
   },
   {
     id: "txn_apr_rent",
@@ -456,6 +463,7 @@ export const transactions: Transaction[] = [
     verificationStatus: "VERIFIED",
     categoryId: "cat_overhead_office_rent",
     channelId: "chn_bca",
+    accountId: "bca_pt",
   },
   {
     id: "txn_apr_grab",
@@ -470,6 +478,7 @@ export const transactions: Transaction[] = [
     verificationStatus: "VERIFIED",
     categoryId: "cat_cost_shipping_grab",
     channelId: "chn_bca",
+    accountId: "bca_blu",
   },
   {
     id: "txn_apr_software",
@@ -484,6 +493,7 @@ export const transactions: Transaction[] = [
     verificationStatus: "VERIFIED",
     categoryId: "cat_overhead_office_operational",
     channelId: "chn_aspire",
+    accountId: "aspire_eur",
     loggedBy: "usr_finance",
   },
   {
@@ -499,6 +509,7 @@ export const transactions: Transaction[] = [
     verificationStatus: "VERIFIED",
     categoryId: "cat_income_shopify",
     channelId: "chn_pingpong",
+    accountId: "pingpong",
     loggedBy: "usr_finance",
   },
   {
@@ -514,6 +525,7 @@ export const transactions: Transaction[] = [
     verificationStatus: "VERIFIED",
     categoryId: "cat_income_wholesale",
     channelId: "chn_wise",
+    accountId: "wise",
     loggedBy: "usr_finance",
   },
   {
@@ -529,6 +541,7 @@ export const transactions: Transaction[] = [
     verificationStatus: "VERIFIED",
     categoryId: "cat_income_offline",
     channelId: "chn_offline",
+    accountId: "bca_blu",
     loggedBy: "usr_finance",
   },
   {
@@ -544,6 +557,7 @@ export const transactions: Transaction[] = [
     verificationStatus: "VERIFIED",
     categoryId: "cat_growth_promote_online_ads",
     channelId: "chn_bca",
+    accountId: "bca_credit_card",
   },
   {
     id: "txn_mar_salary",
@@ -558,6 +572,7 @@ export const transactions: Transaction[] = [
     verificationStatus: "VERIFIED",
     categoryId: "cat_overhead_office_salaries",
     channelId: "chn_bca",
+    accountId: "bca_pt",
     loggedBy: "usr_finance",
   },
   {
@@ -573,6 +588,7 @@ export const transactions: Transaction[] = [
     verificationStatus: "VERIFIED",
     categoryId: "cat_cost_production_material",
     channelId: "chn_bca",
+    accountId: "bca_cv",
   },
   {
     id: "txn_mar_rent",
@@ -587,6 +603,7 @@ export const transactions: Transaction[] = [
     verificationStatus: "VERIFIED",
     categoryId: "cat_overhead_office_rent",
     channelId: "chn_bca",
+    accountId: "bca_pt",
   },
   {
     id: "txn_mar_software",
@@ -601,6 +618,7 @@ export const transactions: Transaction[] = [
     verificationStatus: "VERIFIED",
     categoryId: "cat_overhead_office_operational",
     channelId: "chn_aspire",
+    accountId: "aspire_eur",
     loggedBy: "usr_finance",
   },
   {
@@ -616,6 +634,7 @@ export const transactions: Transaction[] = [
     verificationStatus: "VERIFIED",
     categoryId: "cat_income_shopify",
     channelId: "chn_pingpong",
+    accountId: "pingpong",
     loggedBy: "usr_finance",
   },
   {
@@ -631,6 +650,7 @@ export const transactions: Transaction[] = [
     verificationStatus: "VERIFIED",
     categoryId: "cat_income_consignment",
     channelId: "chn_wise",
+    accountId: "wise",
     loggedBy: "usr_finance",
   },
   {
@@ -646,6 +666,7 @@ export const transactions: Transaction[] = [
     verificationStatus: "VERIFIED",
     categoryId: "cat_growth_promote_online_ads",
     channelId: "chn_bca",
+    accountId: "bca_credit_card",
   },
   {
     id: "txn_feb_cost",
@@ -660,6 +681,7 @@ export const transactions: Transaction[] = [
     verificationStatus: "VERIFIED",
     categoryId: "cat_cost_production_worker",
     channelId: "chn_bca",
+    accountId: "bca_cv",
     loggedBy: "usr_finance",
   },
   {
@@ -675,6 +697,7 @@ export const transactions: Transaction[] = [
     verificationStatus: "VERIFIED",
     categoryId: "cat_overhead_office_operational",
     channelId: "chn_bca",
+    accountId: "bca_pt",
   },
   {
     id: "txn_jan_shopify",
@@ -689,6 +712,7 @@ export const transactions: Transaction[] = [
     verificationStatus: "VERIFIED",
     categoryId: "cat_income_shopify",
     channelId: "chn_pingpong",
+    accountId: "pingpong",
     loggedBy: "usr_finance",
   },
   {
@@ -704,6 +728,7 @@ export const transactions: Transaction[] = [
     verificationStatus: "VERIFIED",
     categoryId: "cat_income_wholesale",
     channelId: "chn_wise",
+    accountId: "wise",
     loggedBy: "usr_finance",
   },
   {
@@ -719,6 +744,7 @@ export const transactions: Transaction[] = [
     verificationStatus: "VERIFIED",
     categoryId: "cat_growth_promote_online_ads",
     channelId: "chn_bca",
+    accountId: "bca_credit_card",
   },
   {
     id: "txn_jan_cost",
@@ -733,6 +759,7 @@ export const transactions: Transaction[] = [
     verificationStatus: "VERIFIED",
     categoryId: "cat_cost_production_worker",
     channelId: "chn_bca",
+    accountId: "bca_sgd_cv",
     loggedBy: "usr_finance",
   },
   {
@@ -748,6 +775,7 @@ export const transactions: Transaction[] = [
     verificationStatus: "VERIFIED",
     categoryId: "cat_overhead_office_operational",
     channelId: "chn_bca",
+    accountId: "bca_pt",
   },
 ];
 

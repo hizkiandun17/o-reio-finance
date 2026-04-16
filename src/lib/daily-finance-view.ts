@@ -268,7 +268,19 @@ function buildMetricComparison(
   current: number,
   previous: number,
   preference: "higher" | "lower",
+  availability: "available" | "no_baseline" | "not_comparable" | "first_recorded" = "available",
 ) {
+  if (availability !== "available") {
+    return {
+      current,
+      previous,
+      deltaPercent: null,
+      direction: "flat" as const,
+      trend: "neutral" as const,
+      availability,
+    };
+  }
+
   const direction: "up" | "down" | "flat" =
     current === previous ? "flat" : current > previous ? "up" : "down";
   const trend: "better" | "worse" | "neutral" =
@@ -288,6 +300,7 @@ function buildMetricComparison(
     deltaPercent: calculateDeltaPercent(current, previous),
     direction,
     trend,
+    availability,
   };
 }
 
@@ -408,10 +421,16 @@ function buildDailyTrendSeries(
     const performance = buildPerformanceSummary(dayTransactions);
 
     return {
+      date: isoDate,
       label: format(day, "dd MMM"),
       revenue: performance.sales,
       expense: performance.expense,
       net: performance.net,
+      growthExpense: performance.growthExpense,
+      adsRatio:
+        performance.sales === 0
+          ? 0
+          : performance.growthExpense / performance.sales,
     };
   });
 }
@@ -443,6 +462,7 @@ export function buildDailyFinanceView(
     transactions,
     previousSelection,
   );
+  const hasPreviousData = previousTransactions.length > 0;
   const currentPerformance = buildPerformanceSummary(scopedTransactions);
   const previousPerformance = buildPerformanceSummary(previousTransactions);
   const currentAdsRatio =
@@ -453,6 +473,27 @@ export function buildDailyFinanceView(
     previousPerformance.sales === 0
       ? 0
       : previousPerformance.growthExpense / previousPerformance.sales;
+  const adsRatioAvailability =
+    !hasPreviousData
+      ? "no_baseline"
+      : previousPerformance.sales === 0
+        ? "not_comparable"
+        : previousPerformance.growthExpense === 0 &&
+            currentPerformance.growthExpense > 0
+          ? "first_recorded"
+          : "available";
+  const revenueAvailability =
+    !hasPreviousData
+      ? "no_baseline"
+      : previousPerformance.sales === 0
+        ? "not_comparable"
+        : "available";
+  const netAvailability =
+    !hasPreviousData
+      ? "no_baseline"
+      : previousPerformance.net === 0
+        ? "not_comparable"
+        : "available";
 
   return {
     balance: {
@@ -471,16 +512,23 @@ export function buildDailyFinanceView(
     trend: buildDailyTrendSeries(scopedTransactions, selection),
     comparison: {
       selection: previousSelection,
-      adsRatio: buildMetricComparison(currentAdsRatio, previousAdsRatio, "lower"),
+      adsRatio: buildMetricComparison(
+        currentAdsRatio,
+        previousAdsRatio,
+        "lower",
+        adsRatioAvailability,
+      ),
       revenue: buildMetricComparison(
         currentPerformance.sales,
         previousPerformance.sales,
         "higher",
+        revenueAvailability,
       ),
       net: buildMetricComparison(
         currentPerformance.net,
         previousPerformance.net,
         "higher",
+        netAvailability,
       ),
     },
     reconciliation: buildReconciliationSummary(scopedTransactions),

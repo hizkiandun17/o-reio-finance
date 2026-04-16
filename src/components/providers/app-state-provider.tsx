@@ -11,6 +11,7 @@ import {
   getDateRangeSelectionForPreset,
   getExpenseGroupForCategory,
   getLandingPath,
+  resolveTransactionAccountId,
   type ViewMode,
 } from "@/lib/business";
 import {
@@ -222,7 +223,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     );
     const unifiedTransaction = createManualUnifiedTransaction(input, {
       id: `txn_manual_${crypto.randomUUID()}`,
-      accountId: input.channelId,
+      accountId: input.accountId ?? input.channelId,
       channel: input.channelId,
       categoryId: input.categoryId,
       categoryGroup:
@@ -244,7 +245,13 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       { categoryId: input.categoryId },
     );
 
-    setTransactions((current) => [legacyTransaction, ...current]);
+    setTransactions((current) => [
+      {
+        ...legacyTransaction,
+        accountId: input.accountId ?? input.channelId,
+      },
+      ...current,
+    ]);
   }, [categoryMap]);
 
   const verifyTransaction = React.useCallback((transactionId: string) => {
@@ -262,26 +269,35 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       setTransactions((current) =>
         current.map((transaction) =>
           transaction.id === transactionId
-            ? {
-                ...transaction,
-                description: input.description,
-                amount: input.amount,
-                originalCurrency: input.originalCurrency,
-                exchangeRate: input.exchangeRate,
-                baseAmount: calculateBaseAmount(
-                  input.amount,
-                  input.originalCurrency,
-                  input.exchangeRate,
-                ),
-                transactionDate: mergeTransactionDate(
-                  input.transactionDate,
-                  transaction.transactionDate,
-                ),
-                kind: input.kind,
-                categoryId: input.categoryId,
-                channelId: input.channelId,
-                verificationStatus: "PENDING",
-              }
+            ? (() => {
+                const nextTransaction: Transaction = {
+                  ...transaction,
+                  description: input.description,
+                  amount: input.amount,
+                  originalCurrency: input.originalCurrency,
+                  exchangeRate: input.exchangeRate,
+                  baseAmount: calculateBaseAmount(
+                    input.amount,
+                    input.originalCurrency,
+                    input.exchangeRate,
+                  ),
+                  transactionDate: mergeTransactionDate(
+                    input.transactionDate,
+                    transaction.transactionDate,
+                  ),
+                  kind: input.kind,
+                  categoryId: input.categoryId,
+                  channelId: input.channelId,
+                  accountId: input.accountId,
+                  verificationStatus: "PENDING",
+                };
+
+                return {
+                  ...nextTransaction,
+                  accountId:
+                    input.accountId ?? resolveTransactionAccountId(nextTransaction),
+                };
+              })()
             : transaction,
         ),
       );

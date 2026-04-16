@@ -13,6 +13,7 @@ import {
   mapTransactionCategory,
   normalizeTransaction,
   normalizeTransactions,
+  resolveTransactionAccountId,
 } from "./business";
 import { categories, reconciliationLogs, transactions } from "./mock-data";
 
@@ -96,9 +97,63 @@ describe("business helpers", () => {
       type: "expense",
       origin: "auto",
       status: "verified",
+      account_id: "bca_credit_card",
       category_group: "growth",
       category_name: "Promote-Online-ads",
     });
+  });
+
+  it("routes legacy transactions to the correct financial account when accountId is missing", () => {
+    expect(
+      resolveTransactionAccountId({
+        id: "legacy_auto_tiktok",
+        amount: 18200000,
+        originalCurrency: "IDR",
+        exchangeRate: 1,
+        baseAmount: 18200000,
+        transactionDate: "2026-04-01T10:12:00+08:00",
+        description: "TikTok Shop settlement",
+        kind: "INCOME",
+        entryType: "AUTO",
+        verificationStatus: "VERIFIED",
+        categoryId: "cat_income_tiktok",
+        channelId: "chn_tiktok",
+      }),
+    ).toBe("tiktok_settlement");
+
+    expect(
+      resolveTransactionAccountId({
+        id: "legacy_auto_shipping",
+        amount: 2600000,
+        originalCurrency: "IDR",
+        exchangeRate: 1,
+        baseAmount: 2600000,
+        transactionDate: "2026-04-01T13:12:00+08:00",
+        description: "OVO top up for Grab shipping",
+        kind: "EXPENSE",
+        entryType: "AUTO",
+        verificationStatus: "VERIFIED",
+        categoryId: "cat_cost_shipping_grab",
+        channelId: "chn_bca",
+      }),
+    ).toBe("bca_blu");
+
+    expect(
+      resolveTransactionAccountId({
+        id: "legacy_manual_shopify",
+        amount: 5850,
+        originalCurrency: "USD",
+        exchangeRate: 16100,
+        baseAmount: 94185000,
+        transactionDate: "2026-04-01T08:12:00+08:00",
+        description: "Pingpong Shopify payout batch 04/01",
+        kind: "INCOME",
+        entryType: "MANUAL",
+        verificationStatus: "VERIFIED",
+        categoryId: "cat_income_shopify",
+        channelId: "chn_pingpong",
+      }),
+    ).toBe("pingpong");
   });
 
   it("aggregates expense totals by main category and subcategory", () => {

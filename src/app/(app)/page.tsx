@@ -12,7 +12,11 @@ import {
 } from "lucide-react";
 
 import { DashboardDateRangeSelector } from "@/components/dashboard-date-range-selector";
-import { ExpenseDonutChart, TrendChart } from "@/components/charts";
+import {
+  ExpenseDonutChart,
+  SingleDayPerformanceChart,
+  TrendChart,
+} from "@/components/charts";
 import { PageHeader } from "@/components/page-header";
 import { useAppState } from "@/components/providers/app-state-provider";
 import { Button } from "@/components/ui/button";
@@ -25,6 +29,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import {
   Tooltip,
   TooltipContent,
@@ -68,6 +73,7 @@ export default function DashboardPage() {
     null,
   );
   const [adsEfficiencyDetailOpen, setAdsEfficiencyDetailOpen] = useState(false);
+  const [showPerformanceTrend, setShowPerformanceTrend] = useState(false);
 
   useEffect(() => {
     if (hydrated && role === "FINANCE") {
@@ -599,26 +605,59 @@ export default function DashboardPage() {
               <div className="mt-4 text-sm text-[#9f9f9f]">
                 {selectedRangeLabel} · ADS {formatPercent(adsRatioPercent)}
               </div>
-              <div className="mt-4 grid gap-3 border-t border-white/8 pt-4 md:grid-cols-3">
-                <TrendComparisonItem
-                  label="Revenue"
-                  comparison={financeView.comparison.revenue}
-                  formatValue={(value) => formatPercent(value)}
-                />
-                <TrendComparisonItem
-                  label="Net"
-                  comparison={financeView.comparison.net}
-                  formatValue={(value) => formatPercent(value)}
-                />
-                <TrendComparisonItem
-                  label="ADS ratio"
-                  comparison={financeView.comparison.adsRatio}
-                  formatValue={(value) => formatPercent(value)}
-                />
-              </div>
+              {!isSingleDayRange ? (
+                <div className="mt-4 flex items-center justify-end gap-3 border-t border-white/8 pt-4">
+                  <span className="text-xs font-medium uppercase tracking-[0.16em] text-[#8f8f8f]">
+                    Show trend
+                  </span>
+                  <Switch
+                    checked={showPerformanceTrend}
+                    onCheckedChange={setShowPerformanceTrend}
+                    aria-label="Show trend"
+                    size="sm"
+                  />
+                </div>
+              ) : null}
+              {isSingleDayRange ? (
+                <div className="mt-4 border-t border-white/8 pt-4">
+                  <p className="text-sm text-[#8f8f8f]">No comparison available</p>
+                </div>
+              ) : (
+                <div className="mt-4 grid gap-3 border-t border-white/8 pt-4 md:grid-cols-3">
+                  <TrendComparisonItem
+                    label="Revenue"
+                    comparison={financeView.comparison.revenue}
+                    formatValue={(value) => formatPercent(value)}
+                  />
+                  <TrendComparisonItem
+                    label="Net"
+                    comparison={financeView.comparison.net}
+                    formatValue={(value) => formatPercent(value)}
+                  />
+                  <TrendComparisonItem
+                    label="ADS ratio"
+                    comparison={financeView.comparison.adsRatio}
+                    formatValue={(value) => formatPercent(value)}
+                  />
+                </div>
+              )}
             </CardHeader>
             <CardContent className="space-y-5">
-              <TrendChart data={financeView.trend} dense muted />
+              {isSingleDayRange ? (
+                <SingleDayPerformanceChart
+                  dateLabel={selectedDateLabel}
+                  revenue={financeView.performance.sales}
+                  expense={financeView.performance.expense}
+                  net={financeView.performance.net}
+                />
+              ) : (
+                <TrendChart
+                  data={financeView.trend}
+                  dense
+                  muted
+                  showTrend={showPerformanceTrend}
+                />
+              )}
             </CardContent>
           </Card>
 
@@ -841,7 +880,7 @@ function SummaryMetricCard({
             </Tooltip>
           ) : null}
         </div>
-        <CardTitle className={cn("mt-3 text-3xl", valueClass)}>{value}</CardTitle>
+        <CardTitle className={cn("mt-3 text-4xl", valueClass)}>{value}</CardTitle>
       </CardHeader>
       <CardContent>
         <p className="text-sm text-[#8f8f8f]">{note}</p>
@@ -857,16 +896,33 @@ function TrendComparisonItem({
 }: {
   label: string;
   comparison: {
+    availability?: "available" | "no_baseline" | "not_comparable" | "first_recorded";
     deltaPercent: number | null;
     direction: "up" | "down" | "flat";
     trend: "better" | "worse" | "neutral";
   };
   formatValue: (value: number) => string;
 }) {
+  if (comparison.availability && comparison.availability !== "available") {
+    return (
+      <div className="rounded-[16px] border border-white/8 bg-[#121212] px-3 py-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#7f7f7f]">
+          {label}
+        </p>
+        <p className="mt-2 text-sm font-medium text-[#d4d4d8]">
+          {getComparisonAvailabilityLabel(comparison.availability)}
+        </p>
+        <p className="mt-2 text-xs text-[#8f8f8f]">
+          {getComparisonAvailabilityCaption(comparison.availability)}
+        </p>
+      </div>
+    );
+  }
+
   const tone = getComparisonTone(comparison.trend);
   const deltaLabel =
     comparison.deltaPercent === null
-      ? "New"
+      ? "0.0%"
       : comparison.direction === "flat"
         ? "0.0%"
         : formatValue(Math.abs(comparison.deltaPercent));
@@ -1130,6 +1186,34 @@ function getComparisonTone(trend: "better" | "worse" | "neutral") {
     textClass: "text-[#bdbdbd]",
     caption: "Flat vs previous",
   };
+}
+
+function getComparisonAvailabilityLabel(
+  availability: "no_baseline" | "not_comparable" | "first_recorded",
+) {
+  if (availability === "no_baseline") {
+    return "No baseline";
+  }
+
+  if (availability === "not_comparable") {
+    return "Not comparable";
+  }
+
+  return "First recorded";
+}
+
+function getComparisonAvailabilityCaption(
+  availability: "no_baseline" | "not_comparable" | "first_recorded",
+) {
+  if (availability === "no_baseline") {
+    return "No verified previous-period data is available.";
+  }
+
+  if (availability === "not_comparable") {
+    return "Previous-period baseline is zero.";
+  }
+
+  return "This metric was not recorded in the previous period.";
 }
 
 function getAdsEfficiencyDetailContent(status: AdsEfficiencyStatus) {
