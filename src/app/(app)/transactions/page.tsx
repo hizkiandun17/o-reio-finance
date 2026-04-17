@@ -211,7 +211,7 @@ export default function TransactionsPage() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <PageHeader
         eyebrow="Ledger view"
         title="Unified transaction stream"
@@ -220,7 +220,7 @@ export default function TransactionsPage() {
 
       <p className="text-sm text-[#b7b7b7]">{ledgerInsight}</p>
 
-      <div className="grid gap-4 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 md:gap-4 xl:grid-cols-4">
         <Card className="surface-panel border-white/10">
           <CardHeader className="pb-2">
             <p className="text-sm text-muted-foreground">Transaction count</p>
@@ -278,7 +278,7 @@ export default function TransactionsPage() {
       </div>
 
       <Card className="surface-panel border-white/10">
-        <CardContent className="space-y-3 pt-6">
+        <CardContent className="space-y-3 pt-4 md:pt-6">
           <div className="flex flex-col gap-3 md:flex-row md:items-center">
             <Input
               value={query}
@@ -288,7 +288,7 @@ export default function TransactionsPage() {
             />
             <Button
               variant="outline"
-              className="h-11 rounded-2xl border-white/10 bg-background/60 px-4 text-white hover:bg-white/6"
+              className="h-11 w-full rounded-2xl border-white/10 bg-background/60 px-4 text-white hover:bg-white/6 md:w-auto"
               onClick={() => {
                 setDraftFilters(appliedFilters);
                 setFiltersOpen(true);
@@ -317,10 +317,110 @@ export default function TransactionsPage() {
 
       <Card className="surface-panel border-white/10">
         <CardHeader>
-          <CardTitle className="text-2xl">Transactions</CardTitle>
+          <CardTitle className="text-xl md:text-2xl">Transactions</CardTitle>
         </CardHeader>
-        <CardContent className="overflow-hidden">
-          <div className="overflow-x-auto">
+        <CardContent className="space-y-3">
+          <div className="space-y-3 md:hidden">
+            {filteredTransactions.length > 0 ? (
+              filteredTransactions.map((row) => {
+                const transaction = row.transaction;
+                const expenseGroup =
+                  transaction.kind === "EXPENSE"
+                    ? getExpenseGroupForCategory(transaction.categoryId, categoryMap)
+                    : null;
+                const groupTone = getExpenseGroupTone(expenseGroup);
+                const isLargeTransaction =
+                  topTransactionThreshold !== null &&
+                  transaction.baseAmount >= topTransactionThreshold;
+
+                return (
+                  <article
+                    key={transaction.id}
+                    className={cn(
+                      "rounded-[20px] border border-white/8 bg-[#121212] p-4",
+                      isLargeTransaction && "bg-white/[0.03]",
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <Link
+                          href={`/transactions/detail?transactionId=${encodeURIComponent(transaction.id)}`}
+                          className="line-clamp-2 font-medium text-white transition hover:text-[#d6d6d6]"
+                        >
+                          {transaction.description}
+                        </Link>
+                        <p className="mt-1 text-sm text-[#8f8f8f]">
+                          {formatDate(transaction.transactionDate)} · {transaction.kind}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className={cn("text-base font-semibold", isLargeTransaction ? "text-white" : "text-[#f3f3f3]")}>
+                          {formatCurrency(transaction.baseAmount)}
+                        </p>
+                        <p className="mt-1 text-xs text-[#8f8f8f]">
+                          Base amount
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-2 gap-3">
+                      <LedgerDetailItem label="Business Channel" value={row.businessChannelLabel} />
+                      <LedgerDetailItem label="Account" value={row.accountLabel} />
+                      <LedgerDetailItem
+                        label="Category"
+                        value={getCategoryLabel(transaction.categoryId, categoryMap)}
+                        secondary={
+                          expenseGroup ? getMainCategoryLabel(expenseGroup) : "Income"
+                        }
+                        secondaryClassName={expenseGroup ? groupTone.textClass : "text-muted-foreground"}
+                      />
+                      <LedgerDetailItem
+                        label="Original Amount"
+                        value={formatCurrency(
+                          transaction.amount,
+                          transaction.originalCurrency,
+                          transaction.originalCurrency === "IDR" ? 0 : 2,
+                        )}
+                        secondary={`${transaction.originalCurrency} · FX ${transaction.exchangeRate.toLocaleString("en-ID")}`}
+                      />
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                      <Badge variant="outline" className="rounded-full border-white/10">
+                        {transaction.entryType}
+                      </Badge>
+                      <Badge
+                        variant="outline"
+                        className={
+                          transaction.verificationStatus === "VERIFIED"
+                            ? "rounded-full border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+                            : "rounded-full border-amber-500/20 bg-amber-500/10 text-amber-300"
+                        }
+                      >
+                        {transaction.verificationStatus}
+                      </Badge>
+                      {transaction.proof ? (
+                        <button
+                          type="button"
+                          onClick={() => setPreviewProof(transaction.proof ?? null)}
+                          className="inline-flex items-center gap-1 rounded-full border border-white/10 px-2.5 py-1 text-xs text-[#d6d6d6] transition hover:bg-white/6 hover:text-white"
+                        >
+                          <Paperclip className="size-3.5" />
+                          Proof attached
+                        </button>
+                      ) : null}
+                    </div>
+                  </article>
+                );
+              })
+            ) : (
+              <div className="rounded-[20px] border border-dashed border-white/10 bg-[#121212] px-4 py-6 text-sm text-[#8f8f8f]">
+                No transactions match the current filters.
+              </div>
+            )}
+          </div>
+
+          <div className="hidden overflow-x-auto md:block">
             <Table>
               <TableHeader>
                 <TableRow className="border-white/8">
@@ -458,7 +558,7 @@ export default function TransactionsPage() {
       </Card>
 
       <Dialog open={filtersOpen} onOpenChange={setFiltersOpen}>
-        <DialogContent className="border-white/10 bg-[#151515] sm:max-w-2xl">
+        <DialogContent className="top-auto left-0 right-0 bottom-0 grid max-h-[85vh] max-w-none translate-x-0 translate-y-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-4 rounded-t-[1.5rem] rounded-b-none border-x-0 border-b-0 border-white/10 bg-[#151515] px-4 pb-4 pt-5 sm:left-1/2 sm:right-auto sm:top-1/2 sm:bottom-auto sm:max-h-none sm:max-w-2xl sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl sm:border sm:p-4">
           <DialogHeader>
             <DialogTitle className="text-white">Filters</DialogTitle>
             <DialogDescription>
@@ -466,144 +566,146 @@ export default function TransactionsPage() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-4 py-2 md:grid-cols-2">
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Business Channel</p>
-              <Select
-                value={draftFilters.businessChannel}
-                onValueChange={(value) =>
-                  value &&
-                  setDraftFilters((current) => ({ ...current, businessChannel: value }))
-                }
-              >
-                <SelectTrigger className="h-10 w-full rounded-2xl bg-[#121212]">
-                  <SelectValue placeholder="All business channels" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All business channels</SelectItem>
-                  {BUSINESS_CHANNEL_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Account</p>
+          <div className="min-h-0 overflow-y-auto py-2">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">Business Channel</p>
                 <Select
-                value={draftFilters.accountId}
-                onValueChange={(value) =>
-                  value && setDraftFilters((current) => ({ ...current, accountId: value }))
-                }
-              >
-                <SelectTrigger className="h-10 w-full rounded-2xl bg-[#121212]">
-                  <SelectValue placeholder="All accounts" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All accounts</SelectItem>
-                  {accountOptions.length > 0 ? (
-                    accountOptions.map((option) => (
+                  value={draftFilters.businessChannel}
+                  onValueChange={(value) =>
+                    value &&
+                    setDraftFilters((current) => ({ ...current, businessChannel: value }))
+                  }
+                >
+                  <SelectTrigger className="h-10 w-full rounded-2xl bg-[#121212]">
+                    <SelectValue placeholder="All business channels" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All business channels</SelectItem>
+                    {BUSINESS_CHANNEL_OPTIONS.map((option) => (
                       <SelectItem key={option.value} value={option.value}>
                         {option.label}
                       </SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem value="no-accounts" disabled>
-                      No accounts in dataset
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Category</p>
-              <Select
-                value={draftFilters.categoryId}
-                onValueChange={(value) =>
-                  value && setDraftFilters((current) => ({ ...current, categoryId: value }))
-                }
-              >
-                <SelectTrigger className="h-10 w-full rounded-2xl bg-[#121212]">
-                  <SelectValue placeholder="All categories" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All categories</SelectItem>
-                  {categoryOptions.map((category) => (
-                    <SelectItem key={category.id} value={category.id}>
-                      {getCategoryLabel(category.id, categoryMap)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">Account</p>
+                <Select
+                  value={draftFilters.accountId}
+                  onValueChange={(value) =>
+                    value && setDraftFilters((current) => ({ ...current, accountId: value }))
+                  }
+                >
+                  <SelectTrigger className="h-10 w-full rounded-2xl bg-[#121212]">
+                    <SelectValue placeholder="All accounts" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All accounts</SelectItem>
+                    {accountOptions.length > 0 ? (
+                      accountOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="no-accounts" disabled>
+                        No accounts in dataset
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Status</p>
-              <Select
-                value={draftFilters.verificationStatus}
-                onValueChange={(value) =>
-                  value &&
-                  setDraftFilters((current) => ({
-                    ...current,
-                    verificationStatus: value as LedgerFilterState["verificationStatus"],
-                  }))
-                }
-              >
-                <SelectTrigger className="h-10 w-full rounded-2xl bg-[#121212]">
-                  <SelectValue placeholder="All statuses" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All statuses</SelectItem>
-                  <SelectItem value="VERIFIED">Verified</SelectItem>
-                  <SelectItem value="PENDING">Pending</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">Category</p>
+                <Select
+                  value={draftFilters.categoryId}
+                  onValueChange={(value) =>
+                    value && setDraftFilters((current) => ({ ...current, categoryId: value }))
+                  }
+                >
+                  <SelectTrigger className="h-10 w-full rounded-2xl bg-[#121212]">
+                    <SelectValue placeholder="All categories" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All categories</SelectItem>
+                    {categoryOptions.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {getCategoryLabel(category.id, categoryMap)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Entry Type</p>
-              <Select
-                value={draftFilters.entryType}
-                onValueChange={(value) =>
-                  value &&
-                  setDraftFilters((current) => ({
-                    ...current,
-                    entryType: value as LedgerFilterState["entryType"],
-                  }))
-                }
-              >
-                <SelectTrigger className="h-10 w-full rounded-2xl bg-[#121212]">
-                  <SelectValue placeholder="All entry types" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All entry types</SelectItem>
-                  <SelectItem value="AUTO">Auto</SelectItem>
-                  <SelectItem value="MANUAL">Manual</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">Status</p>
+                <Select
+                  value={draftFilters.verificationStatus}
+                  onValueChange={(value) =>
+                    value &&
+                    setDraftFilters((current) => ({
+                      ...current,
+                      verificationStatus: value as LedgerFilterState["verificationStatus"],
+                    }))
+                  }
+                >
+                  <SelectTrigger className="h-10 w-full rounded-2xl bg-[#121212]">
+                    <SelectValue placeholder="All statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All statuses</SelectItem>
+                    <SelectItem value="VERIFIED">Verified</SelectItem>
+                    <SelectItem value="PENDING">Pending</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div className="space-y-2 md:col-span-2">
-              <p className="text-sm text-muted-foreground">Currency</p>
-              <Select
-                value={draftFilters.currency}
-                onValueChange={(value) =>
-                  value && setDraftFilters((current) => ({ ...current, currency: value }))
-                }
-              >
-                <SelectTrigger className="h-10 w-full rounded-2xl bg-[#121212]">
-                  <SelectValue placeholder="All currencies" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All currencies</SelectItem>
-                  <SelectItem value="IDR">IDR</SelectItem>
-                  <SelectItem value="USD">USD</SelectItem>
-                  <SelectItem value="SGD">SGD</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">Entry Type</p>
+                <Select
+                  value={draftFilters.entryType}
+                  onValueChange={(value) =>
+                    value &&
+                    setDraftFilters((current) => ({
+                      ...current,
+                      entryType: value as LedgerFilterState["entryType"],
+                    }))
+                  }
+                >
+                  <SelectTrigger className="h-10 w-full rounded-2xl bg-[#121212]">
+                    <SelectValue placeholder="All entry types" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All entry types</SelectItem>
+                    <SelectItem value="AUTO">Auto</SelectItem>
+                    <SelectItem value="MANUAL">Manual</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2 md:col-span-2">
+                <p className="text-sm text-muted-foreground">Currency</p>
+                <Select
+                  value={draftFilters.currency}
+                  onValueChange={(value) =>
+                    value && setDraftFilters((current) => ({ ...current, currency: value }))
+                  }
+                >
+                  <SelectTrigger className="h-10 w-full rounded-2xl bg-[#121212]">
+                    <SelectValue placeholder="All currencies" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All currencies</SelectItem>
+                    <SelectItem value="IDR">IDR</SelectItem>
+                    <SelectItem value="USD">USD</SelectItem>
+                    <SelectItem value="SGD">SGD</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
@@ -689,6 +791,28 @@ function getLedgerInsight(
   const share = totalExpense === 0 ? 0 : (topExpenseGroup[1] / totalExpense) * 100;
 
   return `Most expenses are in ${getMainCategoryLabel(topExpenseGroup[0])} (${formatPercent(share)}), mainly paid through ${topExpenseAccount[0]}.`;
+}
+
+function LedgerDetailItem({
+  label,
+  value,
+  secondary,
+  secondaryClassName,
+}: {
+  label: string;
+  value: string;
+  secondary?: string;
+  secondaryClassName?: string;
+}) {
+  return (
+    <div className="space-y-1">
+      <p className="command-label">{label}</p>
+      <p className="text-sm font-medium text-white">{value}</p>
+      {secondary ? (
+        <p className={cn("text-xs text-[#8f8f8f]", secondaryClassName)}>{secondary}</p>
+      ) : null}
+    </div>
+  );
 }
 
 function getActiveFilterBadges(

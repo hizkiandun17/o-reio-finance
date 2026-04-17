@@ -180,7 +180,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4 md:space-y-5">
       <PageHeader
         eyebrow="System status: operational"
         title="Command Center"
@@ -188,12 +188,12 @@ export default function DashboardPage() {
         actions={
           <>
             <DashboardDateRangeSelector />
-            <Button className="rounded-none border border-white bg-white px-5 text-xs font-semibold uppercase tracking-[0.22em] text-black hover:bg-white/90">
+            <Button className="w-full rounded-none border border-white bg-white px-5 text-xs font-semibold uppercase tracking-[0.22em] text-black hover:bg-white/90 sm:w-auto">
               Export report
             </Button>
             <Button
               variant="outline"
-              className="rounded-none border-white/10 bg-transparent px-5 text-xs font-semibold uppercase tracking-[0.22em] text-white hover:bg-white/6"
+              className="w-full rounded-none border-white/10 bg-transparent px-5 text-xs font-semibold uppercase tracking-[0.22em] text-white hover:bg-white/6 sm:w-auto"
             >
               Config
             </Button>
@@ -207,13 +207,13 @@ export default function DashboardPage() {
           title="Cash position"
           description="Current balance, last close, and how today is moving against the previous snapshot."
         />
-        <div className="grid items-stretch gap-4 md:grid-cols-3">
+        <div className="grid items-stretch gap-3 md:gap-4 md:grid-cols-3">
           <button
             type="button"
             onClick={() => setBalanceDetailView("live")}
             className="h-full text-left"
           >
-            <Card className="command-panel h-full min-h-[190px] transition hover:border-white/14 hover:bg-[#181818]">
+            <Card className="command-panel h-full min-h-[168px] transition hover:border-white/14 hover:bg-[#181818] md:min-h-[190px]">
               <CardHeader className="space-y-4 pb-0">
                 <div className="flex items-center justify-between gap-3">
                   <p className="command-label">Live balance</p>
@@ -264,7 +264,7 @@ export default function DashboardPage() {
             onClick={() => setBalanceDetailView("closing")}
             className="h-full text-left"
           >
-            <Card className="command-panel h-full min-h-[190px] transition hover:border-white/14 hover:bg-[#181818]">
+            <Card className="command-panel h-full min-h-[168px] transition hover:border-white/14 hover:bg-[#181818] md:min-h-[190px]">
               <CardHeader className="space-y-4 pb-0">
                 <p className="command-label">Last closing balance</p>
                 <CardTitle className="text-3xl leading-none text-white">
@@ -290,7 +290,7 @@ export default function DashboardPage() {
 
           <Card
             className={cn(
-              "command-panel h-full min-h-[190px]",
+              "command-panel h-full min-h-[168px] md:min-h-[190px]",
               closeDifferenceTone.panelClass,
             )}
           >
@@ -563,9 +563,9 @@ export default function DashboardPage() {
             Live balance reflects wallet funds, not revenue. This is operational daily decision data.
           </p>
         </div>
-        <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+        <div className="grid gap-3 md:gap-4 xl:grid-cols-[1.2fr_0.8fr]">
           <Card className="command-panel">
-            <CardHeader className="pb-4">
+            <CardHeader className="pb-3 md:pb-4">
               <button
                 type="button"
                 onClick={() => setAdsEfficiencyDetailOpen(true)}
@@ -581,15 +581,15 @@ export default function DashboardPage() {
                   Click to understand what this means
                 </p>
               </button>
-              <div className="flex flex-wrap items-start justify-between gap-4 pt-2">
+              <div className="flex flex-col gap-4 pt-2 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <p className="command-label">{netPerformanceLabel}</p>
-                  <CardTitle className={cn("mt-3 command-kpi", profitTone.valueClass)}>
+                  <CardTitle className={cn("mt-3 text-4xl md:command-kpi", profitTone.valueClass)}>
                     {formatCompactCurrency(financeView.performance.net)}
                   </CardTitle>
                   <p className="mt-3 text-sm text-[#b7b7b7]">{adsEfficiency.message}</p>
                 </div>
-                <div className="rounded-[18px] border border-white/10 bg-[#121212] px-4 py-3 text-right">
+                <div className="w-full rounded-[18px] border border-white/10 bg-[#121212] px-4 py-3 text-left sm:w-auto sm:text-right">
                   <p className="command-label">ADS efficiency</p>
                   <p className="mt-2 text-sm font-medium text-white">
                     {formatPercent(adsRatioPercent)}
@@ -623,7 +623,7 @@ export default function DashboardPage() {
                   <p className="text-sm text-[#8f8f8f]">No comparison available</p>
                 </div>
               ) : (
-                <div className="mt-4 grid gap-3 border-t border-white/8 pt-4 md:grid-cols-3">
+                <div className="mt-4 grid grid-cols-2 gap-3 border-t border-white/8 pt-4 md:grid-cols-3">
                   <TrendComparisonItem
                     label="Revenue"
                     comparison={financeView.comparison.revenue}
@@ -635,6 +635,7 @@ export default function DashboardPage() {
                     formatValue={(value) => formatPercent(value)}
                   />
                   <TrendComparisonItem
+                    className="col-span-2 md:col-span-1"
                     label="ADS ratio"
                     comparison={financeView.comparison.adsRatio}
                     formatValue={(value) => formatPercent(value)}
@@ -642,7 +643,7 @@ export default function DashboardPage() {
                 </div>
               )}
             </CardHeader>
-            <CardContent className="space-y-5">
+            <CardContent className="space-y-4 md:space-y-5">
               {isSingleDayRange ? (
                 <SingleDayPerformanceChart
                   dateLabel={selectedDateLabel}
@@ -661,19 +662,22 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          <div className="grid gap-4">
+          <div className="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-1">
             <SummaryMetricCard
+              className="col-span-1"
               label="Sales"
               value={formatCompactCurrency(financeView.performance.sales)}
               note="Income captured for the selected range."
               infoTooltip="Based on transaction data, not bank balance."
             />
             <SummaryMetricCard
+              className="col-span-1"
               label="Expense"
               value={formatCompactCurrency(financeView.performance.expense)}
               note="Spend captured for the selected range."
             />
             <SummaryMetricCard
+              className="col-span-2 xl:col-span-1"
               label="Net"
               value={formatCompactCurrency(financeView.performance.net)}
               note="Sales minus expense for the selected range."
@@ -689,7 +693,7 @@ export default function DashboardPage() {
           title="Sales and expense detail"
           description="Where income is coming from and how expense is distributed for the selected range."
         />
-        <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+        <div className="grid gap-3 md:gap-4 xl:grid-cols-[0.9fr_1.1fr]">
           <Card className="command-panel">
             <CardHeader>
               <p className="command-label">Sales breakdown</p>
@@ -747,13 +751,13 @@ export default function DashboardPage() {
           title="What needs attention"
           description="Daily guardrails across reconciliation, ad efficiency, and financial risk."
         />
-        <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+        <div className="grid gap-3 md:gap-4 xl:grid-cols-[0.9fr_1.1fr]">
           <Card className="command-panel">
             <CardHeader>
               <CardTitle className="text-xl text-white">Health checks</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="grid gap-3 md:grid-cols-3">
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
                 <div className="border border-white/8 bg-[#121212] px-4 py-4">
                   <p className="command-label">Health</p>
                   <p className="mt-4 text-4xl font-semibold text-[var(--chart-1)]">
@@ -768,7 +772,7 @@ export default function DashboardPage() {
                   </p>
                   <p className="mt-3 text-xs text-[#8f8f8f]">Healthy below 15%, caution above 25%</p>
                 </div>
-                <div className="border border-white/8 bg-[#121212] px-4 py-4">
+                <div className="col-span-2 border border-white/8 bg-[#121212] px-4 py-4 md:col-span-1">
                   <p className="command-label">Pending</p>
                   <p className="mt-4 text-4xl font-semibold text-white">
                     {financeView.reconciliation.pendingCount}
@@ -845,19 +849,21 @@ function SectionHeading({
   return (
     <div className="space-y-1">
       <p className="command-label">{eyebrow}</p>
-      <h2 className="text-xl font-semibold text-white">{title}</h2>
+      <h2 className="text-lg font-semibold text-white md:text-xl">{title}</h2>
       <p className="text-sm text-[#8f8f8f]">{description}</p>
     </div>
   );
 }
 
 function SummaryMetricCard({
+  className,
   label,
   value,
   note,
   infoTooltip,
   valueClass = "text-white",
 }: {
+  className?: string;
   label: string;
   value: string;
   note: string;
@@ -865,8 +871,8 @@ function SummaryMetricCard({
   valueClass?: string;
 }) {
   return (
-    <Card className="command-panel">
-      <CardHeader className="pb-3">
+    <Card className={cn("command-panel", className)}>
+      <CardHeader className="pb-2 md:pb-3">
         <div className="flex items-center gap-2">
           <p className="command-label">{label}</p>
           {infoTooltip ? (
@@ -880,7 +886,7 @@ function SummaryMetricCard({
             </Tooltip>
           ) : null}
         </div>
-        <CardTitle className={cn("mt-3 text-4xl", valueClass)}>{value}</CardTitle>
+        <CardTitle className={cn("mt-2 text-3xl md:mt-3 md:text-4xl", valueClass)}>{value}</CardTitle>
       </CardHeader>
       <CardContent>
         <p className="text-sm text-[#8f8f8f]">{note}</p>
@@ -890,10 +896,12 @@ function SummaryMetricCard({
 }
 
 function TrendComparisonItem({
+  className,
   label,
   comparison,
   formatValue,
 }: {
+  className?: string;
   label: string;
   comparison: {
     availability?: "available" | "no_baseline" | "not_comparable" | "first_recorded";
@@ -905,7 +913,7 @@ function TrendComparisonItem({
 }) {
   if (comparison.availability && comparison.availability !== "available") {
     return (
-      <div className="rounded-[16px] border border-white/8 bg-[#121212] px-3 py-3">
+      <div className={cn("rounded-[16px] border border-white/8 bg-[#121212] px-3 py-3", className)}>
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#7f7f7f]">
           {label}
         </p>
@@ -928,7 +936,7 @@ function TrendComparisonItem({
         : formatValue(Math.abs(comparison.deltaPercent));
 
   return (
-    <div className="rounded-[16px] border border-white/8 bg-[#121212] px-3 py-3">
+    <div className={cn("rounded-[16px] border border-white/8 bg-[#121212] px-3 py-3", className)}>
       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#7f7f7f]">
         {label}
       </p>

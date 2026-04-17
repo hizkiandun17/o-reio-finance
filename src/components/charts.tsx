@@ -603,42 +603,44 @@ export function SingleDayPerformanceChart({
   );
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 md:space-y-4">
       <div className="rounded-[18px] border border-white/8 bg-[#121212] px-4 py-3">
         <p className="text-sm font-medium text-white">
           Single-day view — no trend available
         </p>
         <p className="mt-1 text-sm text-[#8f8f8f]">{dateLabel}</p>
       </div>
-      <div className="h-72 w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-            <CartesianGrid stroke="rgb(255 255 255 / 0.08)" vertical={false} />
-            <XAxis
-              dataKey="label"
-              tickLine={false}
-              axisLine={false}
-              tickMargin={12}
-              tick={{ fill: "#7a7a7a", fontSize: 12 }}
-            />
-            <YAxis
-              tickLine={false}
-              axisLine={false}
-              width={64}
-              domain={domain}
-              tickCount={5}
-              tickFormatter={(value) => formatCompactCurrency(value)}
-              tick={{ fill: "#7a7a7a", fontSize: 12 }}
-            />
-            <ReferenceLine y={0} stroke="rgba(255,255,255,0.16)" />
-            <Tooltip cursor={{ fill: "rgba(255,255,255,0.03)" }} content={<SingleDayBarTooltip />} />
-            <Bar dataKey="value" radius={[12, 12, 0, 0]} maxBarSize={72}>
-              {data.map((item) => (
-                <Cell key={item.label} fill={item.fill} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+      <div className="overflow-x-auto">
+        <div className="h-64 min-w-[420px] w-full md:h-72 md:min-w-0">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+              <CartesianGrid stroke="rgb(255 255 255 / 0.08)" vertical={false} />
+              <XAxis
+                dataKey="label"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={12}
+                tick={{ fill: "#7a7a7a", fontSize: 12 }}
+              />
+              <YAxis
+                tickLine={false}
+                axisLine={false}
+                width={56}
+                domain={domain}
+                tickCount={5}
+                tickFormatter={(value) => formatCompactCurrency(value)}
+                tick={{ fill: "#7a7a7a", fontSize: 12 }}
+              />
+              <ReferenceLine y={0} stroke="rgba(255,255,255,0.16)" />
+              <Tooltip cursor={{ fill: "rgba(255,255,255,0.03)" }} content={<SingleDayBarTooltip />} />
+              <Bar dataKey="value" radius={[12, 12, 0, 0]} maxBarSize={72}>
+                {data.map((item) => (
+                  <Cell key={item.label} fill={item.fill} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
     </div>
   );
@@ -706,109 +708,116 @@ export function TrendChart({
 
   return (
     <div className="space-y-3">
-      <div className={dense ? "h-72 w-full" : "h-80 w-full"}>
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={displayData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-          <CartesianGrid stroke="rgb(255 255 255 / 0.08)" vertical={false} />
-          <XAxis
-            dataKey="label"
-            tickLine={false}
-            axisLine={false}
-            tickMargin={12}
-            tick={{ fill: "#7a7a7a", fontSize: 12 }}
-          />
-          <YAxis
-            tickLine={false}
-            axisLine={false}
-            width={64}
-            domain={yDomain}
-            tickCount={5}
-            tickFormatter={(value) => formatCompactCurrency(value)}
-            tick={{ fill: "#7a7a7a", fontSize: 12 }}
-          />
-          {latestPoint ? (
-            <ReferenceLine
-              x={latestPoint.label}
-              stroke="rgba(255,255,255,0.12)"
-              strokeDasharray="4 4"
-            />
-          ) : null}
-          <Tooltip content={<TrendTooltip showTrend={showTrend} />} />
-          <Line
-            type="linear"
-            dataKey="revenue"
-            stroke={muted ? "rgb(141 211 149 / 0.72)" : "var(--chart-1)"}
-            strokeWidth={muted ? 2 : 2.5}
-            strokeOpacity={muted ? 0.78 : 1}
-            dot={<TrendLatestDot />}
-            activeDot={{ r: 5, fill: muted ? "rgb(141 211 149 / 0.92)" : "var(--chart-1)" }}
-            name="Revenue"
-          />
-          {showTrend ? (
-            <Line
-              type="monotone"
-              dataKey="revenueTrend"
-              stroke={muted ? "rgb(141 211 149 / 0.34)" : "rgb(141 211 149 / 0.46)"}
-              strokeWidth={1.5}
-              strokeDasharray="4 5"
-              strokeOpacity={0.7}
-              dot={false}
-              activeDot={false}
-              isAnimationActive={false}
-              name="Revenue trend"
-            />
-          ) : null}
-          <Line
-            type="linear"
-            dataKey="expense"
-            stroke={muted ? "rgb(176 176 181 / 0.72)" : "var(--chart-3)"}
-            strokeWidth={2}
-            strokeOpacity={muted ? 0.72 : 1}
-            dot={<TrendLatestDot />}
-            activeDot={{ r: 5, fill: muted ? "rgb(176 176 181 / 0.88)" : "var(--chart-3)" }}
-            name="Expense"
-          />
-          {showTrend ? (
-            <Line
-              type="monotone"
-              dataKey="expenseTrend"
-              stroke={muted ? "rgb(176 176 181 / 0.3)" : "rgb(176 176 181 / 0.42)"}
-              strokeWidth={1.5}
-              strokeDasharray="4 5"
-              strokeOpacity={0.68}
-              dot={false}
-              activeDot={false}
-              isAnimationActive={false}
-              name="Expense trend"
-            />
-          ) : null}
-          <Line
-            type="linear"
-            dataKey="net"
-            stroke={muted ? "rgb(240 190 110 / 0.78)" : "var(--chart-4)"}
-            strokeWidth={2}
-            strokeOpacity={muted ? 0.82 : 1}
-            strokeDasharray="6 4"
-            dot={<TrendLatestDot />}
-            activeDot={{ r: 5, fill: muted ? "rgb(240 190 110 / 0.92)" : "var(--chart-4)" }}
-            name="Net"
-          />
-          {showTrend ? (
-            <Line
-              type="monotone"
-              dataKey="netTrend"
-              stroke={muted ? "rgb(240 190 110 / 0.32)" : "rgb(240 190 110 / 0.44)"}
-              strokeWidth={1.5}
-              strokeDasharray="4 5"
-              strokeOpacity={0.7}
-              dot={false}
-              activeDot={false}
-              isAnimationActive={false}
-              name="Net trend"
-            />
-          ) : null}
-          </LineChart>
-        </ResponsiveContainer>
+      <div className="overflow-x-auto">
+        <div
+          className={cn(
+            dense ? "h-72 min-w-[640px]" : "h-80 min-w-[680px]",
+            "w-full md:min-w-0",
+          )}
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={displayData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+              <CartesianGrid stroke="rgb(255 255 255 / 0.08)" vertical={false} />
+              <XAxis
+                dataKey="label"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={12}
+                tick={{ fill: "#7a7a7a", fontSize: 12 }}
+              />
+              <YAxis
+                tickLine={false}
+                axisLine={false}
+                width={56}
+                domain={yDomain}
+                tickCount={5}
+                tickFormatter={(value) => formatCompactCurrency(value)}
+                tick={{ fill: "#7a7a7a", fontSize: 12 }}
+              />
+              {latestPoint ? (
+                <ReferenceLine
+                  x={latestPoint.label}
+                  stroke="rgba(255,255,255,0.12)"
+                  strokeDasharray="4 4"
+                />
+              ) : null}
+              <Tooltip content={<TrendTooltip showTrend={showTrend} />} />
+              <Line
+                type="linear"
+                dataKey="revenue"
+                stroke={muted ? "rgb(141 211 149 / 0.72)" : "var(--chart-1)"}
+                strokeWidth={muted ? 2 : 2.5}
+                strokeOpacity={muted ? 0.78 : 1}
+                dot={<TrendLatestDot />}
+                activeDot={{ r: 5, fill: muted ? "rgb(141 211 149 / 0.92)" : "var(--chart-1)" }}
+                name="Revenue"
+              />
+              {showTrend ? (
+                <Line
+                  type="monotone"
+                  dataKey="revenueTrend"
+                  stroke={muted ? "rgb(141 211 149 / 0.34)" : "rgb(141 211 149 / 0.46)"}
+                  strokeWidth={1.5}
+                  strokeDasharray="4 5"
+                  strokeOpacity={0.7}
+                  dot={false}
+                  activeDot={false}
+                  isAnimationActive={false}
+                  name="Revenue trend"
+                />
+              ) : null}
+              <Line
+                type="linear"
+                dataKey="expense"
+                stroke={muted ? "rgb(176 176 181 / 0.72)" : "var(--chart-3)"}
+                strokeWidth={2}
+                strokeOpacity={muted ? 0.72 : 1}
+                dot={<TrendLatestDot />}
+                activeDot={{ r: 5, fill: muted ? "rgb(176 176 181 / 0.88)" : "var(--chart-3)" }}
+                name="Expense"
+              />
+              {showTrend ? (
+                <Line
+                  type="monotone"
+                  dataKey="expenseTrend"
+                  stroke={muted ? "rgb(176 176 181 / 0.3)" : "rgb(176 176 181 / 0.42)"}
+                  strokeWidth={1.5}
+                  strokeDasharray="4 5"
+                  strokeOpacity={0.68}
+                  dot={false}
+                  activeDot={false}
+                  isAnimationActive={false}
+                  name="Expense trend"
+                />
+              ) : null}
+              <Line
+                type="linear"
+                dataKey="net"
+                stroke={muted ? "rgb(240 190 110 / 0.78)" : "var(--chart-4)"}
+                strokeWidth={2}
+                strokeOpacity={muted ? 0.82 : 1}
+                strokeDasharray="6 4"
+                dot={<TrendLatestDot />}
+                activeDot={{ r: 5, fill: muted ? "rgb(240 190 110 / 0.92)" : "var(--chart-4)" }}
+                name="Net"
+              />
+              {showTrend ? (
+                <Line
+                  type="monotone"
+                  dataKey="netTrend"
+                  stroke={muted ? "rgb(240 190 110 / 0.32)" : "rgb(240 190 110 / 0.44)"}
+                  strokeWidth={1.5}
+                  strokeDasharray="4 5"
+                  strokeOpacity={0.7}
+                  dot={false}
+                  activeDot={false}
+                  isAnimationActive={false}
+                  name="Net trend"
+                />
+              ) : null}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
       </div>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-[#8f8f8f]">
         <span>Solid lines show actual daily values.</span>
