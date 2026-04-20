@@ -67,6 +67,7 @@ interface AppStateContextValue {
   dashboard: DashboardPayload;
   balanceSummary: BalanceSummary | null;
   balanceSummaryLoading: boolean;
+  balanceSummaryError: string | null;
   reconciliationSummary: ReturnType<typeof buildReconciliationSummary>;
   categoryMap: Record<string, (typeof categorySeed)[number]>;
   channelMap: Record<string, (typeof channelSeed)[number]>;
@@ -116,6 +117,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [keywordRules, setKeywordRules] = React.useState(keywordRuleSeed);
   const [balanceSummary, setBalanceSummary] = React.useState<BalanceSummary | null>(null);
   const [balanceSummaryLoading, setBalanceSummaryLoading] = React.useState(true);
+  const [balanceSummaryError, setBalanceSummaryError] = React.useState<string | null>(null);
   const categoryMap = React.useMemo(() => buildCategoryMap(categorySeed), []);
   const channelMap = React.useMemo(() => buildChannelMap(channelSeed), []);
 
@@ -142,6 +144,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     async function loadBalanceSummary() {
       try {
         setBalanceSummaryLoading(true);
+        setBalanceSummaryError(null);
         const response = await fetch("/api/dashboard/balance-summary", {
           cache: "no-store",
         });
@@ -153,10 +156,12 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         const payload = (await response.json()) as BalanceSummary;
         if (!cancelled) {
           setBalanceSummary(payload);
+          setBalanceSummaryError(null);
         }
       } catch {
         if (!cancelled) {
           setBalanceSummary(null);
+          setBalanceSummaryError("Something went wrong. Please refresh or try again.");
         }
       } finally {
         if (!cancelled) {
@@ -376,6 +381,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       reconciliationLogs: reconciliationSeed,
       dashboard,
       balanceSummary,
+      balanceSummaryError,
       balanceSummaryLoading,
       reconciliationSummary,
       categoryMap,
@@ -389,6 +395,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     [
       addManualEntry,
       balanceSummary,
+      balanceSummaryError,
       balanceSummaryLoading,
       categoryMap,
       channelMap,

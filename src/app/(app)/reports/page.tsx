@@ -1,5 +1,12 @@
 "use client";
 
+import {
+  ChartCardSkeleton,
+  MetricCardsSkeleton,
+  PageHeaderSkeleton,
+  SectionErrorBoundary,
+  StateMessage,
+} from "@/components/data-state";
 import { PageHeader } from "@/components/page-header";
 import { ExpenseGroupBarChart, TrendChart } from "@/components/charts";
 import { useAppState } from "@/components/providers/app-state-provider";
@@ -10,10 +17,11 @@ import type { TrendPoint } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export default function ReportsPage() {
-  const { categoryMap, dashboard, transactions, viewMode } = useAppState();
+  const { categoryMap, dashboard, hydrated, transactions, viewMode } = useAppState();
   const scopedTransactions = getTransactionsForMode(transactions, viewMode);
   const expenseGroups = groupExpenseCategories(scopedTransactions, categoryMap);
   const monthlyRollup = dashboard.monthlyTrend;
+  const hasExpenseGroupData = expenseGroups.some((item) => item.value > 0);
   const bestMonth = monthlyRollup.reduce<TrendPoint | null>(
     (best, item) => (best === null || item.net > best.net ? item : best),
     null,
@@ -24,8 +32,13 @@ export default function ReportsPage() {
   );
   const reportInsight = getReportsInsight(monthlyRollup);
 
+  if (!hydrated) {
+    return <ReportsLoadingState />;
+  }
+
   return (
-    <div className="space-y-6">
+    <SectionErrorBoundary title="Reports unavailable" description="Something went wrong. Please refresh or try again.">
+      <div className="space-y-6">
       <PageHeader
         eyebrow="Reporting"
         title="Historical revenue and expense reporting"
@@ -40,7 +53,14 @@ export default function ReportsPage() {
             <CardTitle className="text-2xl">Historical trajectory</CardTitle>
           </CardHeader>
           <CardContent>
-            <TrendChart data={dashboard.monthlyTrend} />
+            {monthlyRollup.length > 0 ? (
+              <TrendChart data={dashboard.monthlyTrend} />
+            ) : (
+              <StateMessage
+                title="No report data for the selected scope"
+                description="Revenue and expense history will appear here once transactions are available."
+              />
+            )}
           </CardContent>
         </Card>
 
@@ -49,7 +69,14 @@ export default function ReportsPage() {
             <CardTitle className="text-2xl">Expense group split</CardTitle>
           </CardHeader>
           <CardContent>
-            <ExpenseGroupBarChart data={expenseGroups} />
+            {hasExpenseGroupData ? (
+              <ExpenseGroupBarChart data={expenseGroups} />
+            ) : (
+              <StateMessage
+                title="No expense data for the selected period"
+                description="Expense group distribution will appear after categorized expenses are recorded."
+              />
+            )}
           </CardContent>
         </Card>
       </div>
@@ -91,46 +118,69 @@ export default function ReportsPage() {
           <CardTitle className="text-2xl">Monthly rollup</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {monthlyRollup.map((item, index) => {
-            const previous = monthlyRollup[index - 1];
-            const delta = getMonthDelta(item, previous);
-            const isBest = bestMonth?.label === item.label;
-            const isWorst = worstMonth?.label === item.label;
+          {monthlyRollup.length === 0 ? (
+            <StateMessage
+              title="No rollup data available"
+              description="Monthly report rows will appear after the first transactions are tracked."
+            />
+          ) : (
+            monthlyRollup.map((item, index) => {
+              const previous = monthlyRollup[index - 1];
+              const delta = getMonthDelta(item, previous);
+              const isBest = bestMonth?.label === item.label;
+              const isWorst = worstMonth?.label === item.label;
 
-            return (
-              <div
-                key={item.label}
-                className={cn(
-                  "grid gap-3 rounded-[1.35rem] border bg-background/60 px-4 py-4 md:grid-cols-4",
-                  isBest
-                    ? "border-emerald-500/18 bg-emerald-500/6"
-                    : isWorst
-                      ? "border-rose-500/18 bg-rose-500/6"
-                      : "border-white/10",
-                )}
-              >
-              <div>
-                <p className="text-sm text-muted-foreground">Month</p>
-                <p className="mt-1 font-medium">{item.label}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Revenue</p>
-                <p className="mt-1 font-medium">{formatCurrency(item.revenue)}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Expense</p>
-                <p className="mt-1 font-medium">{formatCurrency(item.expense)}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Net</p>
-                <p className="mt-1 font-medium">{formatCurrency(item.net)}</p>
-                <p className="mt-1 text-xs text-[#8f8f8f]">{delta}</p>
-              </div>
-              </div>
-            );
-          })}
+              return (
+                <div
+                  key={item.label}
+                  className={cn(
+                    "grid gap-3 rounded-[1.35rem] border bg-background/60 px-4 py-4 md:grid-cols-4",
+                    isBest
+                      ? "border-emerald-500/18 bg-emerald-500/6"
+                      : isWorst
+                        ? "border-rose-500/18 bg-rose-500/6"
+                        : "border-white/10",
+                  )}
+                >
+                <div>
+                  <p className="text-sm text-muted-foreground">Month</p>
+                  <p className="mt-1 font-medium">{item.label}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Revenue</p>
+                  <p className="mt-1 font-medium">{formatCurrency(item.revenue)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Expense</p>
+                  <p className="mt-1 font-medium">{formatCurrency(item.expense)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Net</p>
+                  <p className="mt-1 font-medium">{formatCurrency(item.net)}</p>
+                  <p className="mt-1 text-xs text-[#8f8f8f]">{delta}</p>
+                </div>
+                </div>
+              );
+            })
+          )}
         </CardContent>
       </Card>
+      </div>
+    </SectionErrorBoundary>
+  );
+}
+
+function ReportsLoadingState() {
+  return (
+    <div className="space-y-6">
+      <PageHeaderSkeleton />
+      <div className="h-4 w-3/4 rounded-md bg-white/8" />
+      <div className="grid gap-4 2xl:grid-cols-[1.25fr_0.75fr]">
+        <ChartCardSkeleton />
+        <ChartCardSkeleton />
+      </div>
+      <MetricCardsSkeleton />
+      <ChartCardSkeleton chartHeightClassName="h-64" />
     </div>
   );
 }

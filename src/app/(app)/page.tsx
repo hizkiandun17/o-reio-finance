@@ -13,6 +13,13 @@ import {
 
 import { DashboardDateRangeSelector } from "@/components/dashboard-date-range-selector";
 import {
+  ChartCardSkeleton,
+  MetricCardsSkeleton,
+  PageHeaderSkeleton,
+  SectionErrorBoundary,
+  StateMessage,
+} from "@/components/data-state";
+import {
   ExpenseDonutChart,
   SingleDayPerformanceChart,
   TrendChart,
@@ -63,6 +70,8 @@ export default function DashboardPage() {
   const router = useRouter();
   const {
     balanceSummary,
+    balanceSummaryError,
+    balanceSummaryLoading,
     categoryMap,
     dashboardDateRange,
     hydrated,
@@ -175,6 +184,10 @@ export default function DashboardPage() {
     financeView.performance.sales,
   ]);
 
+  if (!hydrated) {
+    return <DashboardLoadingState />;
+  }
+
   if (role === "FINANCE") {
     return null;
   }
@@ -207,119 +220,131 @@ export default function DashboardPage() {
           title="Cash position"
           description="Current balance, last close, and how today is moving against the previous snapshot."
         />
-        <div className="grid items-stretch gap-3 md:gap-4 md:grid-cols-3">
-          <button
-            type="button"
-            onClick={() => setBalanceDetailView("live")}
-            className="h-full text-left"
-          >
-            <Card className="command-panel h-full min-h-[168px] transition hover:border-white/14 hover:bg-[#181818] md:min-h-[190px]">
-              <CardHeader className="space-y-4 pb-0">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="command-label">Live balance</p>
-                  <span
-                    className={cn(
-                      "inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[0.65rem] font-semibold tracking-[0.18em] uppercase",
-                      liveBalanceStatus.badgeClass,
-                    )}
-                  >
-                    <span className="relative flex size-2">
-                      <span
-                        className={cn(
-                          "absolute inline-flex h-full w-full rounded-full opacity-75",
-                          liveBalanceStatus.pulseClass,
-                        )}
-                      />
-                      <span
-                        className={cn(
-                          "relative inline-flex size-2 rounded-full",
-                          liveBalanceStatus.dotClass,
-                        )}
-                      />
-                    </span>
-                    {liveBalanceStatus.label}
-                  </span>
-                </div>
-                <CardTitle className="text-3xl leading-none text-white">
-                  {formatCompactCurrency(financeView.balance.liveTotal)}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="mt-auto space-y-2 border-t border-white/8 pt-4 text-sm text-[#8f8f8f]">
-                <p>
-                  {financeView.balance.breakdown.local.accounts.length +
-                    financeView.balance.breakdown.foreign.accounts.length +
-                    financeView.balance.breakdown.holding.accounts.length}{" "}
-                  accounts included
-                </p>
-                <p>{selectedDateLabel}</p>
-                <p className={liveBalanceStatus.textClass}>
-                  Status: {liveBalanceStatus.detailLabel}
-                </p>
-              </CardContent>
-            </Card>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setBalanceDetailView("closing")}
-            className="h-full text-left"
-          >
-            <Card className="command-panel h-full min-h-[168px] transition hover:border-white/14 hover:bg-[#181818] md:min-h-[190px]">
-              <CardHeader className="space-y-4 pb-0">
-                <p className="command-label">Last closing balance</p>
-                <CardTitle className="text-3xl leading-none text-white">
-                  {balanceSummary?.lastClosingSnapshot
-                    ? formatCompactCurrency(financeView.balance.snapshotTotal)
-                    : "No close yet"}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="mt-auto space-y-2 border-t border-white/8 pt-4 text-sm text-[#8f8f8f]">
-                <p>
-                  {balanceSummary?.lastClosingSnapshot?.date
-                    ? `Snapshot date ${formatDate(`${balanceSummary.lastClosingSnapshot.date}T00:00:00+07:00`)}`
-                    : "The first automated close will appear after the next daily run."}
-                </p>
-                <p>
-                  {balanceSummary?.lastClosingSnapshot
-                    ? `Snapshot state: ${balanceSummary.lastClosingSnapshot.status}`
-                    : "Reading daily_cash_snapshots"}
-                </p>
-              </CardContent>
-            </Card>
-          </button>
-
-          <Card
-            className={cn(
-              "command-panel h-full min-h-[168px] md:min-h-[190px]",
-              closeDifferenceTone.panelClass,
-            )}
-          >
-            <CardHeader className="space-y-4 pb-0">
-              <p className="command-label">Difference vs close</p>
-              <CardTitle
-                className={cn("text-3xl leading-none", closeDifferenceTone.valueClass)}
+        <SectionErrorBoundary title="Balance unavailable" description="Something went wrong. Please refresh or try again.">
+          {balanceSummaryLoading ? (
+            <MetricCardsSkeleton />
+          ) : balanceSummaryError ? (
+            <StateMessage
+              title="Balance data unavailable"
+              description={balanceSummaryError}
+              tone="error"
+            />
+          ) : (
+            <div className="grid items-stretch gap-3 md:gap-4 md:grid-cols-3">
+              <button
+                type="button"
+                onClick={() => setBalanceDetailView("live")}
+                className="h-full text-left"
               >
-                {formatSignedCompactCurrency(financeView.balance.difference)}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="mt-auto space-y-2 border-t border-white/8 pt-4 text-sm text-[#8f8f8f]">
-              <p className={closeDifferenceTone.emphasisClass}>
-                {balanceSummary?.lastClosingSnapshot
-                  ? `${financeView.balance.percentage > 0 ? "+" : ""}${formatPercent(financeView.balance.percentage)} vs last close`
-                  : "Percentage will appear after the first previous close is available."}
-              </p>
-              <p className="text-white">
-                {!balanceSummary?.lastClosingSnapshot
-                  ? "Waiting for the first comparable closing snapshot."
-                  : financeView.balance.difference > 0
-                  ? "Live cash is above the previous close."
-                  : financeView.balance.difference < 0
-                    ? "Live cash is below the previous close."
-                    : "Live cash is flat against the previous close."}
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+                <Card className="command-panel h-full min-h-[168px] transition hover:border-white/14 hover:bg-[#181818] md:min-h-[190px]">
+                  <CardHeader className="space-y-4 pb-0">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="command-label">Live balance</p>
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[0.65rem] font-semibold tracking-[0.18em] uppercase",
+                          liveBalanceStatus.badgeClass,
+                        )}
+                      >
+                        <span className="relative flex size-2">
+                          <span
+                            className={cn(
+                              "absolute inline-flex h-full w-full rounded-full opacity-75",
+                              liveBalanceStatus.pulseClass,
+                            )}
+                          />
+                          <span
+                            className={cn(
+                              "relative inline-flex size-2 rounded-full",
+                              liveBalanceStatus.dotClass,
+                            )}
+                          />
+                        </span>
+                        {liveBalanceStatus.label}
+                      </span>
+                    </div>
+                    <CardTitle className="text-3xl leading-none text-white">
+                      {formatCompactCurrency(financeView.balance.liveTotal)}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="mt-auto space-y-2 border-t border-white/8 pt-4 text-sm text-[#8f8f8f]">
+                    <p>
+                      {financeView.balance.breakdown.local.accounts.length +
+                        financeView.balance.breakdown.foreign.accounts.length +
+                        financeView.balance.breakdown.holding.accounts.length}{" "}
+                      accounts included
+                    </p>
+                    <p>{selectedDateLabel}</p>
+                    <p className={liveBalanceStatus.textClass}>
+                      Status: {liveBalanceStatus.detailLabel}
+                    </p>
+                  </CardContent>
+                </Card>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setBalanceDetailView("closing")}
+                className="h-full text-left"
+              >
+                <Card className="command-panel h-full min-h-[168px] transition hover:border-white/14 hover:bg-[#181818] md:min-h-[190px]">
+                  <CardHeader className="space-y-4 pb-0">
+                    <p className="command-label">Last closing balance</p>
+                    <CardTitle className="text-3xl leading-none text-white">
+                      {balanceSummary?.lastClosingSnapshot
+                        ? formatCompactCurrency(financeView.balance.snapshotTotal)
+                        : "No close yet"}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="mt-auto space-y-2 border-t border-white/8 pt-4 text-sm text-[#8f8f8f]">
+                    <p>
+                      {balanceSummary?.lastClosingSnapshot?.date
+                        ? `Snapshot date ${formatDate(`${balanceSummary.lastClosingSnapshot.date}T00:00:00+07:00`)}`
+                        : "The first automated close will appear after the next daily run."}
+                    </p>
+                    <p>
+                      {balanceSummary?.lastClosingSnapshot
+                        ? `Snapshot state: ${balanceSummary.lastClosingSnapshot.status}`
+                        : "Reading daily_cash_snapshots"}
+                    </p>
+                  </CardContent>
+                </Card>
+              </button>
+
+              <Card
+                className={cn(
+                  "command-panel h-full min-h-[168px] md:min-h-[190px]",
+                  closeDifferenceTone.panelClass,
+                )}
+              >
+                <CardHeader className="space-y-4 pb-0">
+                  <p className="command-label">Difference vs close</p>
+                  <CardTitle
+                    className={cn("text-3xl leading-none", closeDifferenceTone.valueClass)}
+                  >
+                    {formatSignedCompactCurrency(financeView.balance.difference)}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="mt-auto space-y-2 border-t border-white/8 pt-4 text-sm text-[#8f8f8f]">
+                  <p className={closeDifferenceTone.emphasisClass}>
+                    {balanceSummary?.lastClosingSnapshot
+                      ? `${financeView.balance.percentage > 0 ? "+" : ""}${formatPercent(financeView.balance.percentage)} vs last close`
+                      : "Percentage will appear after the first previous close is available."}
+                  </p>
+                  <p className="text-white">
+                    {!balanceSummary?.lastClosingSnapshot
+                      ? "Waiting for the first comparable closing snapshot."
+                      : financeView.balance.difference > 0
+                      ? "Live cash is above the previous close."
+                      : financeView.balance.difference < 0
+                        ? "Live cash is below the previous close."
+                        : "Live cash is flat against the previous close."}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </SectionErrorBoundary>
       </section>
 
       <Dialog
@@ -563,7 +588,8 @@ export default function DashboardPage() {
             Live balance reflects wallet funds, not revenue. This is operational daily decision data.
           </p>
         </div>
-        <div className="grid gap-3 md:gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+        <SectionErrorBoundary title="Performance unavailable" description="Something went wrong. Please refresh or try again.">
+          <div className="grid gap-3 md:gap-4 xl:grid-cols-[1.2fr_0.8fr]">
           <Card className="command-panel">
             <CardHeader className="pb-3 md:pb-4">
               <button
@@ -684,7 +710,8 @@ export default function DashboardPage() {
               valueClass={profitTone.valueClass}
             />
           </div>
-        </div>
+          </div>
+        </SectionErrorBoundary>
       </section>
 
       <section className="space-y-3">
@@ -693,7 +720,8 @@ export default function DashboardPage() {
           title="Sales and expense detail"
           description="Where income is coming from and how expense is distributed for the selected range."
         />
-        <div className="grid gap-3 md:gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+        <SectionErrorBoundary title="Breakdown unavailable" description="Something went wrong. Please refresh or try again.">
+          <div className="grid gap-3 md:gap-4 xl:grid-cols-[0.9fr_1.1fr]">
           <Card className="command-panel">
             <CardHeader>
               <p className="command-label">Sales breakdown</p>
@@ -742,7 +770,8 @@ export default function DashboardPage() {
               <ExpenseDonutChart data={financeView.expenseBreakdown} />
             </CardContent>
           </Card>
-        </div>
+          </div>
+        </SectionErrorBoundary>
       </section>
 
       <section className="space-y-3">
@@ -751,7 +780,8 @@ export default function DashboardPage() {
           title="What needs attention"
           description="Daily guardrails across reconciliation, ad efficiency, and financial risk."
         />
-        <div className="grid gap-3 md:gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+        <SectionErrorBoundary title="Signals unavailable" description="Something went wrong. Please refresh or try again.">
+          <div className="grid gap-3 md:gap-4 xl:grid-cols-[0.9fr_1.1fr]">
           <Card className="command-panel">
             <CardHeader>
               <CardTitle className="text-xl text-white">Health checks</CardTitle>
@@ -831,8 +861,48 @@ export default function DashboardPage() {
               })}
             </CardContent>
           </Card>
-        </div>
+          </div>
+        </SectionErrorBoundary>
       </section>
+    </div>
+  );
+}
+
+function DashboardLoadingState() {
+  return (
+    <div className="space-y-4 md:space-y-5">
+      <PageHeaderSkeleton showActions />
+
+      <div className="space-y-3">
+        <SkeletonSectionHeading />
+        <MetricCardsSkeleton />
+      </div>
+
+      <div className="space-y-3">
+        <SkeletonSectionHeading />
+        <div className="grid gap-3 md:gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+          <ChartCardSkeleton />
+          <MetricCardsSkeleton count={3} columnsClassName="grid-cols-2 xl:grid-cols-1" />
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <SkeletonSectionHeading />
+        <div className="grid gap-3 md:gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+          <ChartCardSkeleton />
+          <ChartCardSkeleton />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SkeletonSectionHeading() {
+  return (
+    <div className="space-y-2">
+      <div className="h-3 w-24 rounded-md bg-white/8" />
+      <div className="h-7 w-44 rounded-md bg-white/8" />
+      <div className="h-4 w-full max-w-xl rounded-md bg-white/8" />
     </div>
   );
 }

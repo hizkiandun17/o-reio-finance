@@ -5,6 +5,13 @@ import Link from "next/link";
 import { MoreHorizontal, PencilLine, Trash2 } from "lucide-react";
 
 import { getCategoryLabel } from "@/lib/business";
+import {
+  MetricCardsSkeleton,
+  PageHeaderSkeleton,
+  SectionErrorBoundary,
+  StateMessage,
+  TableCardSkeleton,
+} from "@/components/data-state";
 import { PageHeader } from "@/components/page-header";
 import { useAppState } from "@/components/providers/app-state-provider";
 import { Badge } from "@/components/ui/badge";
@@ -64,6 +71,7 @@ export default function ReconciliationPage() {
     categories,
     categoryMap,
     channels,
+    hydrated,
     reconciliationSummary,
     role,
     transactions,
@@ -117,6 +125,10 @@ export default function ReconciliationPage() {
       ? 1
       : Number(editingTransaction?.exchangeRate ?? 0);
 
+  if (!hydrated) {
+    return <ReconciliationLoadingState />;
+  }
+
   function openEditDialog(transaction: Transaction) {
     setEditingTransaction(createEditFormState(transaction));
   }
@@ -160,7 +172,8 @@ export default function ReconciliationPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <SectionErrorBoundary title="Reconciliation unavailable" description="Something went wrong. Please refresh or try again.">
+      <div className="space-y-5">
       <PageHeader
         eyebrow="Ledger overview"
         title="Reconciliation"
@@ -221,113 +234,120 @@ export default function ReconciliationPage() {
           </div>
         </CardHeader>
         <CardContent className="space-y-0">
-          {ledgerRows.map((transaction) => (
-            <div
-              key={transaction.id}
-              className={cn(
-                "grid gap-4 border-t py-5 md:grid-cols-[180px_1.2fr_180px_180px_176px]",
-                transaction.verificationStatus === "PENDING"
-                  ? "border-amber-500/18 bg-amber-500/[0.04]"
-                  : "border-white/8",
-              )}
-            >
-              <div>
-                <p className="font-medium text-white">
-                  {formatDateTime(transaction.transactionDate, "dd MMM yyyy")}
-                </p>
-                <p className="mt-1 text-sm text-[#8f8f8f]">
-                  {formatDateTime(transaction.transactionDate, "HH:mm:ss")}
-                </p>
-              </div>
-
-              <div>
-                <p className="font-medium text-white">{transaction.description}</p>
-                <div className="mt-1 flex items-center gap-2 text-sm text-[#8f8f8f]">
-                  <span
-                    className={cn(
-                      "size-2 rounded-full",
-                      transaction.verificationStatus === "VERIFIED"
-                        ? "bg-white"
-                        : "bg-amber-300",
-                    )}
-                  />
-                  <span
-                    className={cn(
-                      transaction.verificationStatus === "PENDING" && "text-amber-200",
-                    )}
-                  >
-                    {transaction.verificationStatus === "VERIFIED"
-                      ? "Verified"
-                      : "Pending"}{" "}
-                    · {transaction.entryType}
-                  </span>
+          {ledgerRows.length === 0 ? (
+            <StateMessage
+              title="No transactions available for reconciliation"
+              description="Incoming and manual transactions will appear here once they are added to the ledger."
+            />
+          ) : (
+            ledgerRows.map((transaction) => (
+              <div
+                key={transaction.id}
+                className={cn(
+                  "grid gap-4 border-t py-5 md:grid-cols-[180px_1.2fr_180px_180px_176px]",
+                  transaction.verificationStatus === "PENDING"
+                    ? "border-amber-500/18 bg-amber-500/[0.04]"
+                    : "border-white/8",
+                )}
+              >
+                <div>
+                  <p className="font-medium text-white">
+                    {formatDateTime(transaction.transactionDate, "dd MMM yyyy")}
+                  </p>
+                  <p className="mt-1 text-sm text-[#8f8f8f]">
+                    {formatDateTime(transaction.transactionDate, "HH:mm:ss")}
+                  </p>
                 </div>
-              </div>
 
-              <div className="flex items-center">
-                <Badge
-                  variant="outline"
-                  className="rounded-none border-white/10 bg-[#1b1b1b] text-[11px] uppercase tracking-[0.18em] text-[#d8d8d8]"
-                >
-                  {getSourceDisplayName(transaction.channelId)}
-                </Badge>
-              </div>
-
-              <div className="flex items-center">
-                <p className="font-medium text-white">{formatCurrency(transaction.baseAmount)}</p>
-              </div>
-
-              <div className="flex items-center md:justify-end">
-                <div className="flex items-center gap-2">
-                  {transaction.verificationStatus === "PENDING" ? (
-                    <Button
-                      onClick={() => verifyTransaction(transaction.id)}
-                      disabled={!canVerify}
-                      variant="outline"
-                      className="rounded-none border-amber-500/30 bg-amber-500/10 text-xs font-semibold uppercase tracking-[0.18em] text-amber-100 hover:bg-amber-500/15"
+                <div>
+                  <p className="font-medium text-white">{transaction.description}</p>
+                  <div className="mt-1 flex items-center gap-2 text-sm text-[#8f8f8f]">
+                    <span
+                      className={cn(
+                        "size-2 rounded-full",
+                        transaction.verificationStatus === "VERIFIED"
+                          ? "bg-white"
+                          : "bg-amber-300",
+                      )}
+                    />
+                    <span
+                      className={cn(
+                        transaction.verificationStatus === "PENDING" && "text-amber-200",
+                      )}
                     >
-                      Verify now
-                    </Button>
-                  ) : (
-                    <span className="text-xs uppercase tracking-[0.18em] text-[#8f8f8f]">
-                      Complete
+                      {transaction.verificationStatus === "VERIFIED"
+                        ? "Verified"
+                        : "Pending"}{" "}
+                      · {transaction.entryType}
                     </span>
-                  )}
+                  </div>
+                </div>
 
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      disabled={!canManageTransactions}
-                      className="inline-flex size-8 items-center justify-center rounded-none border border-white/10 bg-[#151515] text-[#8f8f8f] transition hover:border-white/18 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-                      aria-label={`More actions for ${transaction.description}`}
-                    >
-                      <MoreHorizontal className="size-4" />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                      align="end"
-                      className="w-48 rounded-none border border-white/10 bg-[#151515] p-1 text-white"
-                    >
-                      <DropdownMenuItem
-                        className="rounded-none px-2 py-2 text-sm text-white focus:bg-white/6 focus:text-white"
-                        onClick={() => openEditDialog(transaction)}
+                <div className="flex items-center">
+                  <Badge
+                    variant="outline"
+                    className="rounded-none border-white/10 bg-[#1b1b1b] text-[11px] uppercase tracking-[0.18em] text-[#d8d8d8]"
+                  >
+                    {getSourceDisplayName(transaction.channelId)}
+                  </Badge>
+                </div>
+
+                <div className="flex items-center">
+                  <p className="font-medium text-white">{formatCurrency(transaction.baseAmount)}</p>
+                </div>
+
+                <div className="flex items-center md:justify-end">
+                  <div className="flex items-center gap-2">
+                    {transaction.verificationStatus === "PENDING" ? (
+                      <Button
+                        onClick={() => verifyTransaction(transaction.id)}
+                        disabled={!canVerify}
+                        variant="outline"
+                        className="rounded-none border-amber-500/30 bg-amber-500/10 text-xs font-semibold uppercase tracking-[0.18em] text-amber-100 hover:bg-amber-500/15"
                       >
-                        <PencilLine className="size-4" />
-                        Edit transaction
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator className="bg-white/8" />
-                      <DropdownMenuItem
-                        variant="destructive"
-                        className="rounded-none px-2 py-2 text-sm focus:bg-red-500/10"
-                        onClick={() => setTransactionToRemove(transaction)}
+                        Verify now
+                      </Button>
+                    ) : (
+                      <span className="text-xs uppercase tracking-[0.18em] text-[#8f8f8f]">
+                        Complete
+                      </span>
+                    )}
+
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        disabled={!canManageTransactions}
+                        className="inline-flex size-8 items-center justify-center rounded-none border border-white/10 bg-[#151515] text-[#8f8f8f] transition hover:border-white/18 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                        aria-label={`More actions for ${transaction.description}`}
                       >
-                        <Trash2 className="size-4" />
-                        Remove transaction
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                        <MoreHorizontal className="size-4" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align="end"
+                        className="w-48 rounded-none border border-white/10 bg-[#151515] p-1 text-white"
+                      >
+                        <DropdownMenuItem
+                          className="rounded-none px-2 py-2 text-sm text-white focus:bg-white/6 focus:text-white"
+                          onClick={() => openEditDialog(transaction)}
+                        >
+                          <PencilLine className="size-4" />
+                          Edit transaction
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator className="bg-white/8" />
+                        <DropdownMenuItem
+                          variant="destructive"
+                          className="rounded-none px-2 py-2 text-sm focus:bg-red-500/10"
+                          onClick={() => setTransactionToRemove(transaction)}
+                        >
+                          <Trash2 className="size-4" />
+                          Remove transaction
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </CardContent>
       </Card>
 
@@ -628,6 +648,18 @@ export default function ReconciliationPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
+    </SectionErrorBoundary>
+  );
+}
+
+function ReconciliationLoadingState() {
+  return (
+    <div className="space-y-5">
+      <PageHeaderSkeleton showActions />
+      <div className="h-4 w-3/4 rounded-md bg-white/8" />
+      <MetricCardsSkeleton />
+      <TableCardSkeleton rows={5} />
     </div>
   );
 }

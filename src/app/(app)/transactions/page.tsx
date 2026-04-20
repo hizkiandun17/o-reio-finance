@@ -4,6 +4,13 @@ import Link from "next/link";
 import { useDeferredValue, useMemo, useState } from "react";
 import { Eye, Paperclip } from "lucide-react";
 
+import {
+  MetricCardsSkeleton,
+  PageHeaderSkeleton,
+  SectionErrorBoundary,
+  StateMessage,
+  TableCardSkeleton,
+} from "@/components/data-state";
 import { PageHeader } from "@/components/page-header";
 import { useAppState } from "@/components/providers/app-state-provider";
 import { TransactionProofDialog } from "@/components/transaction-proof-dialog";
@@ -83,7 +90,7 @@ const defaultFilters: LedgerFilterState = {
 };
 
 export default function TransactionsPage() {
-  const { categories, categoryMap, dashboard, transactions } =
+  const { categories, categoryMap, dashboard, hydrated, transactions } =
     useAppState();
   const [query, setQuery] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -210,8 +217,13 @@ export default function TransactionsPage() {
     [categoryMap, filteredTransactions],
   );
 
+  if (!hydrated) {
+    return <TransactionsLoadingState />;
+  }
+
   return (
-    <div className="space-y-4 md:space-y-6">
+    <SectionErrorBoundary title="Transactions unavailable" description="Something went wrong. Please refresh or try again.">
+      <div className="space-y-4 md:space-y-6">
       <PageHeader
         eyebrow="Ledger view"
         title="Unified transaction stream"
@@ -320,107 +332,108 @@ export default function TransactionsPage() {
           <CardTitle className="text-xl md:text-2xl">Transactions</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="space-y-3 md:hidden">
-            {filteredTransactions.length > 0 ? (
-              filteredTransactions.map((row) => {
-                const transaction = row.transaction;
-                const expenseGroup =
-                  transaction.kind === "EXPENSE"
-                    ? getExpenseGroupForCategory(transaction.categoryId, categoryMap)
-                    : null;
-                const groupTone = getExpenseGroupTone(expenseGroup);
-                const isLargeTransaction =
-                  topTransactionThreshold !== null &&
-                  transaction.baseAmount >= topTransactionThreshold;
+          {filteredTransactions.length === 0 ? (
+            <StateMessage
+              title="No transactions available for this range"
+              description="Try adjusting the filters or date range to see more ledger activity."
+            />
+          ) : (
+            <>
+              <div className="space-y-3 md:hidden">
+                {filteredTransactions.map((row) => {
+                  const transaction = row.transaction;
+                  const expenseGroup =
+                    transaction.kind === "EXPENSE"
+                      ? getExpenseGroupForCategory(transaction.categoryId, categoryMap)
+                      : null;
+                  const groupTone = getExpenseGroupTone(expenseGroup);
+                  const isLargeTransaction =
+                    topTransactionThreshold !== null &&
+                    transaction.baseAmount >= topTransactionThreshold;
 
-                return (
-                  <article
-                    key={transaction.id}
-                    className={cn(
-                      "rounded-[20px] border border-white/8 bg-[#121212] p-4",
-                      isLargeTransaction && "bg-white/[0.03]",
-                    )}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <Link
-                          href={`/transactions/detail?transactionId=${encodeURIComponent(transaction.id)}`}
-                          className="line-clamp-2 font-medium text-white transition hover:text-[#d6d6d6]"
-                        >
-                          {transaction.description}
-                        </Link>
-                        <p className="mt-1 text-sm text-[#8f8f8f]">
-                          {formatDate(transaction.transactionDate)} · {transaction.kind}
-                        </p>
+                  return (
+                    <article
+                      key={transaction.id}
+                      className={cn(
+                        "rounded-[20px] border border-white/8 bg-[#121212] p-4",
+                        isLargeTransaction && "bg-white/[0.03]",
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <Link
+                            href={`/transactions/detail?transactionId=${encodeURIComponent(transaction.id)}`}
+                            className="line-clamp-2 font-medium text-white transition hover:text-[#d6d6d6]"
+                          >
+                            {transaction.description}
+                          </Link>
+                          <p className="mt-1 text-sm text-[#8f8f8f]">
+                            {formatDate(transaction.transactionDate)} · {transaction.kind}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className={cn("text-base font-semibold", isLargeTransaction ? "text-white" : "text-[#f3f3f3]")}>
+                            {formatCurrency(transaction.baseAmount)}
+                          </p>
+                          <p className="mt-1 text-xs text-[#8f8f8f]">
+                            Base amount
+                          </p>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className={cn("text-base font-semibold", isLargeTransaction ? "text-white" : "text-[#f3f3f3]")}>
-                          {formatCurrency(transaction.baseAmount)}
-                        </p>
-                        <p className="mt-1 text-xs text-[#8f8f8f]">
-                          Base amount
-                        </p>
+
+                      <div className="mt-4 grid grid-cols-2 gap-3">
+                        <LedgerDetailItem label="Business Channel" value={row.businessChannelLabel} />
+                        <LedgerDetailItem label="Account" value={row.accountLabel} />
+                        <LedgerDetailItem
+                          label="Category"
+                          value={getCategoryLabel(transaction.categoryId, categoryMap)}
+                          secondary={
+                            expenseGroup ? getMainCategoryLabel(expenseGroup) : "Income"
+                          }
+                          secondaryClassName={expenseGroup ? groupTone.textClass : "text-muted-foreground"}
+                        />
+                        <LedgerDetailItem
+                          label="Original Amount"
+                          value={formatCurrency(
+                            transaction.amount,
+                            transaction.originalCurrency,
+                            transaction.originalCurrency === "IDR" ? 0 : 2,
+                          )}
+                          secondary={`${transaction.originalCurrency} · FX ${transaction.exchangeRate.toLocaleString("en-ID")}`}
+                        />
                       </div>
-                    </div>
 
-                    <div className="mt-4 grid grid-cols-2 gap-3">
-                      <LedgerDetailItem label="Business Channel" value={row.businessChannelLabel} />
-                      <LedgerDetailItem label="Account" value={row.accountLabel} />
-                      <LedgerDetailItem
-                        label="Category"
-                        value={getCategoryLabel(transaction.categoryId, categoryMap)}
-                        secondary={
-                          expenseGroup ? getMainCategoryLabel(expenseGroup) : "Income"
-                        }
-                        secondaryClassName={expenseGroup ? groupTone.textClass : "text-muted-foreground"}
-                      />
-                      <LedgerDetailItem
-                        label="Original Amount"
-                        value={formatCurrency(
-                          transaction.amount,
-                          transaction.originalCurrency,
-                          transaction.originalCurrency === "IDR" ? 0 : 2,
-                        )}
-                        secondary={`${transaction.originalCurrency} · FX ${transaction.exchangeRate.toLocaleString("en-ID")}`}
-                      />
-                    </div>
-
-                    <div className="mt-4 flex flex-wrap items-center gap-2">
-                      <Badge variant="outline" className="rounded-full border-white/10">
-                        {transaction.entryType}
-                      </Badge>
-                      <Badge
-                        variant="outline"
-                        className={
-                          transaction.verificationStatus === "VERIFIED"
-                            ? "rounded-full border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
-                            : "rounded-full border-amber-500/20 bg-amber-500/10 text-amber-300"
-                        }
-                      >
-                        {transaction.verificationStatus}
-                      </Badge>
-                      {transaction.proof ? (
-                        <button
-                          type="button"
-                          onClick={() => setPreviewProof(transaction.proof ?? null)}
-                          className="inline-flex items-center gap-1 rounded-full border border-white/10 px-2.5 py-1 text-xs text-[#d6d6d6] transition hover:bg-white/6 hover:text-white"
+                      <div className="mt-4 flex flex-wrap items-center gap-2">
+                        <Badge variant="outline" className="rounded-full border-white/10">
+                          {transaction.entryType}
+                        </Badge>
+                        <Badge
+                          variant="outline"
+                          className={
+                            transaction.verificationStatus === "VERIFIED"
+                              ? "rounded-full border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+                              : "rounded-full border-amber-500/20 bg-amber-500/10 text-amber-300"
+                          }
                         >
-                          <Paperclip className="size-3.5" />
-                          Proof attached
-                        </button>
-                      ) : null}
-                    </div>
-                  </article>
-                );
-              })
-            ) : (
-              <div className="rounded-[20px] border border-dashed border-white/10 bg-[#121212] px-4 py-6 text-sm text-[#8f8f8f]">
-                No transactions match the current filters.
+                          {transaction.verificationStatus}
+                        </Badge>
+                        {transaction.proof ? (
+                          <button
+                            type="button"
+                            onClick={() => setPreviewProof(transaction.proof ?? null)}
+                            className="inline-flex items-center gap-1 rounded-full border border-white/10 px-2.5 py-1 text-xs text-[#d6d6d6] transition hover:bg-white/6 hover:text-white"
+                          >
+                            <Paperclip className="size-3.5" />
+                            Proof attached
+                          </button>
+                        ) : null}
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
-            )}
-          </div>
 
-          <div className="hidden overflow-x-auto md:block">
+              <div className="hidden overflow-x-auto md:block">
             <Table>
               <TableHeader>
                 <TableRow className="border-white/8">
@@ -553,7 +566,9 @@ export default function TransactionsPage() {
                 })}
               </TableBody>
             </Table>
-          </div>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -741,6 +756,18 @@ export default function TransactionsPage() {
         title="Proof attachment"
         description="View or download the proof linked to this transaction."
       />
+      </div>
+    </SectionErrorBoundary>
+  );
+}
+
+function TransactionsLoadingState() {
+  return (
+    <div className="space-y-4 md:space-y-6">
+      <PageHeaderSkeleton />
+      <div className="h-4 w-3/4 rounded-md bg-white/8" />
+      <MetricCardsSkeleton count={4} columnsClassName="sm:grid-cols-2 xl:grid-cols-4" />
+      <TableCardSkeleton rows={6} />
     </div>
   );
 }

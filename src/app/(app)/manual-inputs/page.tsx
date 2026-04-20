@@ -9,6 +9,13 @@ import {
   MANUAL_EXPENSE_GROUP_OPTIONS,
 } from "@/lib/business";
 import { accounts as accountSeed } from "@/lib/mock-data";
+import {
+  FormCardSkeleton,
+  ListCardSkeleton,
+  PageHeaderSkeleton,
+  SectionErrorBoundary,
+  StateMessage,
+} from "@/components/data-state";
 import { PageHeader } from "@/components/page-header";
 import { useAppState } from "@/components/providers/app-state-provider";
 import { TransactionProofDialog } from "@/components/transaction-proof-dialog";
@@ -43,7 +50,7 @@ const PROOF_ACCEPT = "image/jpeg,image/png,application/pdf,.jpg,.jpeg,.png,.pdf"
 const SUPPORTED_PROOF_TYPES = new Set(["image/jpeg", "image/png", "application/pdf"]);
 
 export default function ManualInputsPage() {
-  const { addManualEntry, categories, categoryMap, role, transactions } = useAppState();
+  const { addManualEntry, categories, categoryMap, hydrated, role, transactions } = useAppState();
   const canSubmit = role !== "OPS_MANAGER";
   const proofInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -250,8 +257,13 @@ export default function ManualInputsPage() {
     .filter((item) => item.entryType === "MANUAL")
     .slice(0, 3);
 
+  if (!hydrated) {
+    return <ManualInputsLoadingState />;
+  }
+
   return (
-    <div className="space-y-5">
+    <SectionErrorBoundary title="Manual input unavailable" description="Something went wrong. Please refresh or try again.">
+      <div className="space-y-5">
       <PageHeader
         eyebrow="Manual entry"
         title="New Transaction"
@@ -622,54 +634,61 @@ export default function ManualInputsPage() {
             <CardTitle className="text-lg text-white">Recent manual entries</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {recentManualEntries.map((entry) => (
-              <div key={entry.id} className="flex items-start justify-between gap-4 border-t border-white/8 pt-3 first:border-t-0 first:pt-0">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium text-white">{entry.description}</p>
+            {recentManualEntries.length === 0 ? (
+              <StateMessage
+                title="No manual entries yet"
+                description="Manually added transactions will appear here after you save them."
+              />
+            ) : (
+              recentManualEntries.map((entry) => (
+                <div key={entry.id} className="flex items-start justify-between gap-4 border-t border-white/8 pt-3 first:border-t-0 first:pt-0">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-white">{entry.description}</p>
+                      {entry.proof ? (
+                        <button
+                          type="button"
+                          onClick={() => setPreviewProof(entry.proof ?? null)}
+                          className="inline-flex size-7 items-center justify-center border border-white/10 text-[#d6d6d6] transition hover:bg-white/6 hover:text-white"
+                          aria-label={`View proof for ${entry.description}`}
+                        >
+                          <Paperclip className="size-3.5" />
+                        </button>
+                      ) : null}
+                    </div>
+                    <p className="mt-1 text-sm text-[#8f8f8f]">
+                      {formatDate(entry.transactionDate)} · {getSourceDisplayName(entry.accountId ?? entry.channelId)}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "rounded-none border px-2 py-0.5 text-[11px] uppercase tracking-[0.18em]",
+                        entry.verificationStatus === "VERIFIED"
+                          ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+                          : "border-amber-500/20 bg-amber-500/10 text-amber-300",
+                      )}
+                    >
+                      {entry.verificationStatus}
+                    </Badge>
+                    <p className="mt-2 text-sm font-medium text-white">
+                      {formatCurrency(entry.baseAmount)}
+                    </p>
                     {entry.proof ? (
                       <button
                         type="button"
                         onClick={() => setPreviewProof(entry.proof ?? null)}
-                        className="inline-flex size-7 items-center justify-center border border-white/10 text-[#d6d6d6] transition hover:bg-white/6 hover:text-white"
-                        aria-label={`View proof for ${entry.description}`}
+                        className="mt-2 inline-flex items-center gap-1 text-xs uppercase tracking-[0.18em] text-[#cfcfcf] transition hover:text-white"
                       >
-                        <Paperclip className="size-3.5" />
+                        <Download className="size-3" />
+                        Proof
                       </button>
                     ) : null}
                   </div>
-                  <p className="mt-1 text-sm text-[#8f8f8f]">
-                    {formatDate(entry.transactionDate)} · {getSourceDisplayName(entry.accountId ?? entry.channelId)}
-                  </p>
                 </div>
-                <div className="text-right">
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      "rounded-none border px-2 py-0.5 text-[11px] uppercase tracking-[0.18em]",
-                      entry.verificationStatus === "VERIFIED"
-                        ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
-                        : "border-amber-500/20 bg-amber-500/10 text-amber-300",
-                    )}
-                  >
-                    {entry.verificationStatus}
-                  </Badge>
-                  <p className="mt-2 text-sm font-medium text-white">
-                    {formatCurrency(entry.baseAmount)}
-                  </p>
-                  {entry.proof ? (
-                    <button
-                      type="button"
-                      onClick={() => setPreviewProof(entry.proof ?? null)}
-                      className="mt-2 inline-flex items-center gap-1 text-xs uppercase tracking-[0.18em] text-[#cfcfcf] transition hover:text-white"
-                    >
-                      <Download className="size-3" />
-                      Proof
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </CardContent>
         </Card>
       </div>
@@ -685,6 +704,19 @@ export default function ManualInputsPage() {
         title="Transaction proof"
         description="Review or download the proof attached to this transaction."
       />
+      </div>
+    </SectionErrorBoundary>
+  );
+}
+
+function ManualInputsLoadingState() {
+  return (
+    <div className="space-y-5">
+      <PageHeaderSkeleton />
+      <div className="mx-auto max-w-3xl space-y-4">
+        <FormCardSkeleton />
+        <ListCardSkeleton rows={3} titleWidthClassName="w-44" />
+      </div>
     </div>
   );
 }
